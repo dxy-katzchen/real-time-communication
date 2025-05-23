@@ -1,7 +1,15 @@
 import React, { useRef, useEffect, useState } from "react";
 import io from "socket.io-client";
+import Auth from "./Components/Auth";
+import MeetingLobby from "./Components/MeetingLobby";
 
 function App() {
+  // User and Meeting state
+  const [userId, setUserId] = useState<string | null>(null);
+  const [username, setUsername] = useState<string | null>(null);
+  const [meetingId, setMeetingId] = useState<string | null>(null);
+  const [participants, setParticipants] = useState<any[]>([]);
+
   const processedMsgIdsRef = useRef<Set<string>>(new Set());
   const [room, setRoom] = useState("");
   const [inRoom, setInRoom] = useState(false);
@@ -12,6 +20,76 @@ function App() {
   const peerConnection = useRef<RTCPeerConnection | null>(null);
   const socketRef = useRef<any>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
+
+  // Handle user creation/login
+  const handleUserCreated = (userId: string, username: string) => {
+    setUserId(userId);
+    setUsername(username);
+
+    // Load from localStorage if available
+    const storedMeetingId = localStorage.getItem("lastMeetingId");
+    if (storedMeetingId) {
+      setMeetingId(storedMeetingId);
+    }
+  };
+
+  // Handle meeting creation
+  const handleCreateMeeting = (newMeetingId: string) => {
+    setMeetingId(newMeetingId);
+    setRoom(newMeetingId);
+    setInRoom(true);
+    localStorage.setItem("lastMeetingId", newMeetingId);
+  };
+
+  // Handle joining a meeting
+  const handleJoinMeeting = (meetingIdToJoin: string) => {
+    setMeetingId(meetingIdToJoin);
+    setRoom(meetingIdToJoin);
+    setInRoom(true);
+    localStorage.setItem("lastMeetingId", meetingIdToJoin);
+  };
+
+  // Leave meeting handler
+  const handleLeaveMeeting = () => {
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach((track) => track.stop());
+      localStreamRef.current = null;
+    }
+
+    if (peerConnection.current) {
+      peerConnection.current.close();
+      peerConnection.current = null;
+    }
+
+    setInRoom(false);
+    setMeetingId(null);
+    localStorage.removeItem("lastMeetingId");
+  };
+
+  // Load participants when meeting is joined
+  useEffect(() => {
+    if (meetingId) {
+      const fetchParticipants = async () => {
+        try {
+          const response = await fetch(
+            `http://localhost:5002/api/meetings/${meetingId}/participants`
+          );
+          if (response.ok) {
+            const data = await response.json();
+            setParticipants(data);
+          }
+        } catch (err) {
+          console.error("Error fetching participants:", err);
+        }
+      };
+
+      fetchParticipants();
+      // Set up an interval to periodically refresh the participant list
+      const intervalId = setInterval(fetchParticipants, 10000);
+
+      return () => clearInterval(intervalId);
+    }
+  }, [meetingId, inRoom]);
 
   useEffect(() => {
     // Try to reconnect socket if it fails
@@ -465,6 +543,23 @@ function App() {
       alert("Failed to access camera or microphone. Please check permissions.");
       return null;
     }
+  }
+
+  // If not authenticated, show login
+  if (!userId || !username) {
+    return <Auth onUserCreated={handleUserCreated} />;
+  }
+
+  // If authenticated but not in a meeting, show meeting lobby
+  if (!inRoom || !meetingId) {
+    return (
+      <MeetingLobby
+        userId={userId}
+        username={username}
+        onJoinMeeting={handleJoinMeeting}
+        onCreateMeeting={handleCreateMeeting}
+      />
+    );
   }
 
   return (
