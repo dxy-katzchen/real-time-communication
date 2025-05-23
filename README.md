@@ -3,95 +3,72 @@
 ## System Overview
 
 ```mermaid
-graph TB
-    subgraph "Frontend (React App)"
-        A[User A Browser]
-        B[User B Browser]
-        C[User C Browser]
+flowchart TD
+    %% Main Components
+    User["👤 User"]
+    Browser["🌐 Browser"]
+    Server["⚙️ Socket.IO Server"]
+    Database["💾 MongoDB"]
 
-        subgraph "User A Components"
-            A1[Auth Component]
-            A2[MeetingLobby Component]
-            A3[VideoMeeting Component]
-            A4[Local Video Stream]
-            A5[Remote Video Components]
-        end
-
-        subgraph "User B Components"
-            B1[Auth Component]
-            B2[MeetingLobby Component]
-            B3[VideoMeeting Component]
-            B4[Local Video Stream]
-            B5[Remote Video Components]
-        end
+    %% Application Flow
+    subgraph "User Journey"
+        Auth["🔑 Authentication"]
+        Create["📝 Create Meeting"]
+        Join["🚪 Join Meeting"]
+        Connect["🔌 Establish WebRTC"]
+        Stream["📹 Stream Media"]
+        End["❌ End Meeting"]
     end
 
-    subgraph "Backend (Flask + Socket.IO)"
-        S[Socket.IO Server]
-        API[REST API]
-        DB[(MongoDB)]
-
-        subgraph "Socket Events"
-            E1[join/leave room]
-            E2[offer/answer/ice-candidate]
-            E3[user-joined/user-left]
-            E4[meeting-ended]
-        end
-
-        subgraph "API Endpoints"
-            R1["/api/users"]
-            R2["/api/meetings"]
-            R3["/api/meetings/:id/join"]
-            R4["/api/meetings/:id/end"]
-        end
+    subgraph "WebRTC Flow"
+        LocalMedia["📹 Get Local Media"]
+        Signaling["📡 Signaling"]
+        PeerConn["🔄 Create Peer Connection"]
+        ICE["❄️ ICE Candidates Exchange"]
+        P2P["👥 P2P Connection"]
     end
 
-    subgraph "WebRTC P2P Connections"
-        P1[Peer Connection A-B]
-        P2[Peer Connection A-C]
-        P3[Peer Connection B-C]
+    subgraph "Media Exchange"
+        direction LR
+        UserA["👤 User A"] <--"Direct P2P"--> UserB["👤 User B"]
+        UserA <--"Direct P2P"--> UserC["👤 User C"]
+        UserB <--"Direct P2P"--> UserC
     end
 
-    %% Authentication Flow
-    A1 -->|Create/Login User| R1
-    R1 -->|Store User| DB
+    %% Main Flow
+    User --> Auth
+    Auth -- "API Call" --> Database
+    Auth --> Create
+    Auth --> Join
+    Create -- "Generate meetingId" --> Database
+    Join -- "Validate meetingId" --> Database
+    Create --> Connect
+    Join --> Connect
+    Connect --> Stream
+    Stream --> End
+    End -- "Cleanup" --> Database
 
-    %% Meeting Creation/Join Flow
-    A2 -->|Create Meeting| R2
-    A2 -->|Join Meeting| R3
-    R2 -->|Store Meeting| DB
-    R3 -->|Add Participant| DB
+    %% WebRTC Detail Flow
+    Connect --> LocalMedia
+    LocalMedia --> Signaling
+    Signaling -- "Socket.IO" --> Server
+    Server -- "Relay" --> Signaling
+    Signaling --> PeerConn
+    PeerConn --> ICE
+    ICE -- "Socket.IO" --> Server
+    ICE --> P2P
+    P2P --> Stream
 
-    %% Socket Connections
-    A -.->|Socket.IO| S
-    B -.->|Socket.IO| S
-    C -.->|Socket.IO| S
+    %% Styles
+    classDef browser fill:#e1f5fe,stroke:#0277bd,stroke-width:2px
+    classDef server fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef db fill:#ffebee,stroke:#c62828,stroke-width:2px
+    classDef media fill:#fff9c4,stroke:#fbc02d,stroke-width:2px
 
-    %% WebRTC Signaling through Socket.IO
-    S -->|Relay Signals| E1
-    S -->|Relay Signals| E2
-    S -->|Relay Signals| E3
-
-    %% Direct P2P Media Streams
-    A4 -.->|Direct RTP/SRTP| P1
-    A4 -.->|Direct RTP/SRTP| P2
-    B4 -.->|Direct RTP/SRTP| P1
-    B4 -.->|Direct RTP/SRTP| P3
-
-    %% Media Display
-    P1 -->|Remote Stream| A5
-    P1 -->|Remote Stream| B5
-    P2 -->|Remote Stream| A5
-    P3 -->|Remote Stream| B5
-
-    style A fill:#e1f5fe
-    style B fill:#e8f5e8
-    style C fill:#fff3e0
-    style S fill:#f3e5f5
-    style DB fill:#ffebee
-    style P1 fill:#fff9c4
-    style P2 fill:#fff9c4
-    style P3 fill:#fff9c4
+    class Browser browser
+    class Server server
+    class Database db
+    class Stream,LocalMedia,P2P media
 ```
 
 ## WebRTC Signaling Flow
@@ -132,8 +109,8 @@ sequenceDiagram
     S->>A: emit('ice-candidate', {candidate, fromSocket: B})
 
     Note over A,B: Direct P2P Connection Established
-    A-.->B: Direct Media Stream (RTP/SRTP)
-    B-.->A: Direct Media Stream (RTP/SRTP)
+    A->>B: Direct Media Stream (RTP/SRTP)
+    B->>A: Direct Media Stream (RTP/SRTP)
 ```
 
 ## Key Components Explained
