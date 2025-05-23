@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState } from "react";
 import io from "socket.io-client";
 
 function App() {
+  const processedMsgIdsRef = useRef<Set<string>>(new Set());
   const [room, setRoom] = useState("");
   const [inRoom, setInRoom] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState("Not connected");
@@ -39,28 +40,23 @@ function App() {
     };
   }, []);
 
-  // Setup media stream early
   useEffect(() => {
     if (inRoom) {
       startMedia();
     }
 
     return () => {
-      // Cleanup media when leaving room
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach((track) => track.stop());
       }
     };
   }, [inRoom]);
 
-  // Setup WebRTC event listeners when in a room
   useEffect(() => {
     if (!inRoom || !socketRef.current) return;
 
-    // Track message processing to avoid duplicates
-    const processedMsgIds = new Set();
+    processedMsgIdsRef.current.clear();
 
-    // Setup event handlers for WebRTC signaling
     const handleUserJoined = async () => {
       console.log("User joined, creating offer");
       if (peerConnection.current) {
@@ -73,10 +69,9 @@ function App() {
         const offer = await peerConnection.current.createOffer();
         await peerConnection.current.setLocalDescription(offer);
 
-        // Add unique ID to each message
         const msgId = Date.now().toString();
         socketRef.current.emit("offer", { offer, room, msgId });
-        processedMsgIds.add(msgId);
+        processedMsgIdsRef.current.add(msgId);
       } catch (error) {
         console.error("Error creating offer:", error);
         setIceStatus("Failed to create connection offer");
@@ -90,12 +85,11 @@ function App() {
       offer: RTCSessionDescriptionInit;
       msgId: string;
     }) => {
-      // Skip if we've already processed this message
-      if (processedMsgIds.has(msgId)) {
+      if (processedMsgIdsRef.current.has(msgId)) {
         console.log("Skipping duplicate offer");
         return;
       }
-      processedMsgIds.add(msgId);
+      processedMsgIdsRef.current.add(msgId);
 
       console.log("Received offer, creating answer", {
         signalingState: peerConnection.current?.signalingState,
@@ -113,10 +107,9 @@ function App() {
         const answer = await peerConnection.current.createAnswer();
         await peerConnection.current.setLocalDescription(answer);
 
-        // Add unique ID to the answer message
         const responseId = Date.now().toString();
         socketRef.current.emit("answer", { answer, room, msgId: responseId });
-        processedMsgIds.add(responseId);
+        processedMsgIdsRef.current.add(responseId);
       } catch (error) {
         console.error("Error handling offer:", error);
         setIceStatus("Failed to create connection answer");
@@ -130,12 +123,11 @@ function App() {
       answer: RTCSessionDescriptionInit;
       msgId: string;
     }) => {
-      // Skip if we've already processed this message
-      if (processedMsgIds.has(msgId)) {
+      if (processedMsgIdsRef.current.has(msgId)) {
         console.log("Skipping duplicate answer");
         return;
       }
-      processedMsgIds.add(msgId);
+      processedMsgIdsRef.current.add(msgId);
 
       console.log(
         "Received answer, signaling state:",
@@ -143,12 +135,10 @@ function App() {
       );
 
       try {
-        // Check if peer connection exists and is in the correct state to receive an answer
         if (peerConnection.current) {
           const state = peerConnection.current.signalingState;
 
           if (state === "have-local-offer") {
-            // This is the correct state to process an answer
             await peerConnection.current.setRemoteDescription(
               new RTCSessionDescription(answer)
             );
@@ -156,7 +146,6 @@ function App() {
               "Connection answer received, establishing connection..."
             );
           } else if (state === "stable") {
-            // Already in stable state, just ignore the answer
             console.log("Ignoring answer - already in stable state");
           } else {
             console.warn(
@@ -164,7 +153,6 @@ function App() {
             );
             setIceStatus(`Cannot process answer in state: ${state}`);
 
-            // Reset connection if in an unexpected state
             if (
               state === "have-remote-offer" ||
               state === "have-remote-pranswer"
@@ -172,7 +160,7 @@ function App() {
               console.log("Resetting connection due to invalid state");
               peerConnection.current.close();
               peerConnection.current = createPeer();
-              socketRef.current.emit("join", { room }); // Reinitiate connection
+              socketRef.current.emit("join", { room });
             }
           }
         } else {
@@ -204,16 +192,13 @@ function App() {
       }
     };
 
-    // Register event handlers
     socketRef.current.on("user-joined", handleUserJoined);
     socketRef.current.on("offer", handleOffer);
     socketRef.current.on("answer", handleAnswer);
     socketRef.current.on("ice-candidate", handleIceCandidate);
 
-    // Join the room
     socketRef.current.emit("join", { room });
 
-    // Cleanup function to remove event listeners
     return () => {
       socketRef.current.off("user-joined", handleUserJoined);
       socketRef.current.off("offer", handleOffer);
@@ -233,7 +218,6 @@ function App() {
       if (document.visibilityState === "visible" && inRoom) {
         console.log("Tab became visible, checking connection...");
 
-        // If we have a connection but no remote video, try to restart
         if (
           peerConnection.current &&
           peerConnection.current.connectionState !== "connected" &&
@@ -260,13 +244,11 @@ function App() {
   };
 
   function createPeer() {
-    // Add TURN servers to configuration
     const pc = new RTCPeerConnection({
       iceServers: [
         {
           urls: "stun:stun.relay.metered.ca:80",
         },
-
         {
           urls: "turn:global.relay.metered.ca:443",
           username: "92c0c0f3362e3c6f2f20a86d",
@@ -297,7 +279,6 @@ function App() {
         console.log("Setting remote stream");
         remoteVideo.current.srcObject = event.streams[0];
 
-        // Force play after a short delay to handle autoplay restrictions
         setTimeout(() => {
           if (remoteVideo.current) {
             remoteVideo.current
@@ -310,7 +291,6 @@ function App() {
           }
         }, 1000);
 
-        // Monitor track status for debugging
         event.track.onunmute = () =>
           console.log("Track unmuted:", event.track.kind);
         event.track.onmute = () =>
@@ -346,12 +326,10 @@ function App() {
             "ICE Connection failed. Attempting to restart connection."
           );
 
-          // Try ICE restart
           if (peerConnection.current) {
             const restartConnection = async () => {
               try {
                 if (peerConnection.current?.signalingState === "stable") {
-                  // Create a new offer with iceRestart flag
                   const restartOffer = await peerConnection.current.createOffer(
                     {
                       iceRestart: true,
@@ -367,7 +345,7 @@ function App() {
                     room,
                     msgId: restartMsgId,
                   });
-                  processedMsgIds.add(restartMsgId);
+                  processedMsgIdsRef.current.add(restartMsgId);
                 }
               } catch (err) {
                 console.error("Failed to restart ICE:", err);
@@ -387,7 +365,6 @@ function App() {
       }
     };
 
-    // Add local tracks to the peer connection
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach((track) => {
         pc.addTrack(track, localStreamRef.current!);
