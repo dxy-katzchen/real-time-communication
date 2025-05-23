@@ -113,6 +113,35 @@ def join_meeting(meeting_id):
     
     return jsonify({'success': True}), 200
 
+@app.route('/api/meetings/<meeting_id>/end', methods=['POST'])
+def end_meeting(meeting_id):
+    user_data = request.json
+    user_id = user_data['userId']
+    
+    # Check if meeting exists
+    meeting = meetings_collection.find_one({'_id': ObjectId(meeting_id)})
+    if not meeting:
+        return jsonify({'error': 'Meeting not found'}), 404
+    
+    # Verify the user is the host
+    if meeting['hostId'] != user_id:
+        return jsonify({'error': 'Only the host can end the meeting'}), 403
+    
+    # Update meeting status to inactive
+    meetings_collection.update_one(
+        {'_id': ObjectId(meeting_id)},
+        {'$set': {'active': False, 'endedAt': datetime.now()}}
+    )
+    
+    # Notify all participants through socket
+    socketio.emit('meeting-ended', {'meetingId': meeting_id}, to=meeting_id)
+    
+    return jsonify({
+        'success': True,
+        'meetingId': meeting_id,
+        'message': 'Meeting ended successfully'
+    }), 200
+
 @app.route('/api/meetings/<meeting_id>/participants', methods=['GET'])
 def get_participants(meeting_id):
     participants = list(participants_collection.find({'meetingId': meeting_id}))
@@ -147,6 +176,24 @@ def on_join(data):
     room = data['room']
     join_room(room)
     socketio.emit('user-joined', to=room)
+
+# Add this with the other socket.io events
+@socketio.on('end-meeting')
+def on_end_meeting(data):
+    room = data['room']
+    user_id = data['userId']
+    
+    # Check if meeting exists and user is host
+    meeting = meetings_collection.find_one({'_id': ObjectId(room)})
+    if meeting and meeting['hostId'] == user_id:
+        # Update meeting status to inactive
+        meetings_collection.update_one(
+            {'_id': ObjectId(room)},
+            {'$set': {'active': False, 'endedAt': datetime.now()}}
+        )
+        
+        # Notify all participants
+        socketio.emit('meeting-ended', {'meetingId': room}, to=room)
 
 @socketio.on('offer')
 def on_offer(data):

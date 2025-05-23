@@ -20,6 +20,7 @@ function App() {
   const peerConnection = useRef<RTCPeerConnection | null>(null);
   const socketRef = useRef<any>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
+  const [isEndingMeeting, setIsEndingMeeting] = useState(false);
 
   // Handle user creation/login
   const handleUserCreated = (userId: string, username: string) => {
@@ -49,6 +50,47 @@ function App() {
     localStorage.setItem("lastMeetingId", meetingIdToJoin);
   };
 
+  const handleEndMeeting = async () => {
+    if (!meetingId || !userId) return;
+
+    setIsEndingMeeting(true);
+
+    try {
+      // First try the REST endpoint
+      const response = await fetch(
+        `http://localhost:5002/api/meetings/${meetingId}/end`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ userId }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Error ending meeting:", errorData.error);
+        alert(`Failed to end meeting: ${errorData.error}`);
+        setIsEndingMeeting(false); // Reset flag on error
+        return;
+      }
+
+      // Also emit a socket event as a backup mechanism
+      socketRef.current.emit("end-meeting", {
+        room: meetingId,
+        userId,
+      });
+
+      // Handle UI updates
+      alert("Meeting ended successfully");
+      handleLeaveMeeting(); // Reuse leave meeting logic
+    } catch (err) {
+      console.error("Error ending meeting:", err);
+      alert("Network error when ending meeting. Please try again.");
+      setIsEndingMeeting(false); // Reset flag on error
+    }
+  };
   // Leave meeting handler
   const handleLeaveMeeting = () => {
     if (localStreamRef.current) {
@@ -65,6 +107,28 @@ function App() {
     setMeetingId(null);
     localStorage.removeItem("lastMeetingId");
   };
+
+  useEffect(() => {
+    if (!socketRef.current) return;
+
+    const handleMeetingEnded = (data: { meetingId: string }) => {
+      if (data.meetingId === meetingId) {
+        // Only show the alert if we're not the one ending the meeting
+        if (!isEndingMeeting) {
+          alert("This meeting has been ended by the host");
+        }
+        handleLeaveMeeting();
+      }
+    };
+
+    socketRef.current.on("meeting-ended", handleMeetingEnded);
+
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.off("meeting-ended", handleMeetingEnded);
+      }
+    };
+  }, [meetingId, isEndingMeeting]);
 
   // Load participants when meeting is joined
   useEffect(() => {
@@ -587,6 +651,7 @@ function App() {
       ) : (
         <div>
           <h3>Room: {room}</h3>
+
           <div
             style={{
               padding: "8px",
@@ -601,6 +666,18 @@ function App() {
             }}
           >
             WebRTC Status: {iceStatus}
+          </div>
+          <div style={{ marginTop: "20px" }}>
+            <h4>Participants ({participants.length})</h4>
+            <ul style={{ listStyle: "none", padding: 0 }}>
+              {participants.map((p) => (
+                <li key={p.userId}>
+                  {p.displayName || p.username}
+                  {p.isHost && " (Host)"}
+                  {p.userId === userId && " (You)"}
+                </li>
+              ))}
+            </ul>
           </div>
           <div style={{ display: "flex", gap: "20px" }}>
             <div>
@@ -624,6 +701,46 @@ function App() {
           </div>
           <div style={{ marginTop: "15px" }}>
             <button
+              onClick={handleLeaveMeeting}
+              style={{
+                padding: "8px 15px",
+                backgroundColor: "#dc3545",
+                color: "white",
+                border: "none",
+                borderRadius: "4px",
+                cursor: "pointer",
+                fontWeight: "bold",
+              }}
+            >
+              Leave Room
+            </button>
+            {participants.some((p) => p.userId === userId && p.isHost) && (
+              <button
+                onClick={handleEndMeeting}
+                style={{
+                  padding: "8px 15px",
+                  backgroundColor: "#dc3545",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                  fontWeight: "bold",
+                  marginLeft: "10px",
+                }}
+              >
+                End Meeting For All
+              </button>
+            )}
+            <button
+              style={{
+                padding: "8px 15px",
+                backgroundColor: "#9fdc35",
+                color: "white",
+                border: "none",
+                borderRadius: "4px",
+                cursor: "pointer",
+                fontWeight: "bold",
+              }}
               onClick={() => {
                 if (peerConnection.current) {
                   peerConnection.current.close();
