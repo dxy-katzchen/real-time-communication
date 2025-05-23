@@ -150,4 +150,4 @@ User Action → Socket.IO Event → Server Relay → Other Users → UI Update
 - **Frontend**: React, TypeScript, WebRTC API
 - **Backend**: Flask, Socket.IO, MongoDB
 - **Real-time**: Socket.IO for signaling, WebRTC for media
-- **Infrastructure**: STUN/TURN servers for NAT traversal
+- **Infrastructure**: STUN/[TURN](https://www.metered.ca/tools/openrelay/#what-is-a-turn-server) servers for NAT traversal
