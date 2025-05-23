@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-from flask_socketio import SocketIO, emit, join_room
+from flask_socketio import SocketIO, emit, join_room, leave_room
 from flask_cors import CORS
 from pymongo import MongoClient
 from bson.objectid import ObjectId
@@ -24,6 +24,9 @@ socketio = SocketIO(
     engineio_logger=True,
     async_mode='threading'
 )
+
+# Store active connections
+active_connections = {}
 
 @app.route('/')
 def index():
@@ -161,21 +164,122 @@ def get_participants(meeting_id):
     
     return jsonify(result), 200
 
+# Add a new endpoint to check if user is host
+@app.route('/api/meetings/<meeting_id>/is-host/<user_id>', methods=['GET'])
+def is_host(meeting_id, user_id):
+    meeting = meetings_collection.find_one({'_id': ObjectId(meeting_id)})
+    if not meeting:
+        return jsonify({'error': 'Meeting not found'}), 404
+    
+    return jsonify({'isHost': meeting['hostId'] == user_id}), 200
+
+# Add endpoint to remove participant when they leave
+@app.route('/api/meetings/<meeting_id>/leave', methods=['POST'])
+def leave_meeting_api(meeting_id):
+    user_data = request.json
+    user_id = user_data['userId']
+    
+    # Remove participant from meeting
+    participants_collection.delete_one({
+        'meetingId': meeting_id,
+        'userId': user_id
+    })
+    
+    return jsonify({'success': True}), 200
+
 # Socket.IO events for WebRTC signaling
 @socketio.on('connect')
 def handle_connect():
-    print('Client connected')
+    print(f'Client connected: {request.sid}')
     emit('connected', {'data': 'Connected'})
 
+# Update the disconnect handler
 @socketio.on('disconnect')
 def handle_disconnect():
-    print('Client disconnected')
+    print(f'Client disconnected: {request.sid}')
+    
+    # Clean up active connections
+    if request.sid in active_connections:
+        room_info = active_connections[request.sid]
+        room = room_info['room']
+        user_id = room_info['userId']
+        
+        # Leave the room
+        leave_room(room)
+        
+        # Notify other participants that this user left
+        socketio.emit('user-left', {
+            'userId': user_id,
+            'socketId': request.sid
+        }, to=room, include_self=False)
+        
+        # Remove from database
+        participants_collection.delete_one({
+            'meetingId': room,
+            'userId': user_id
+        })
+        
+        print(f"User {user_id} left room {room}")
+        del active_connections[request.sid]
 
 @socketio.on('join')
 def on_join(data):
     room = data['room']
+    user_id = data.get('userId')
+    
+    # Store connection info
+    active_connections[request.sid] = {
+        'room': room,
+        'userId': user_id,
+        'socketId': request.sid
+    }
+    
     join_room(room)
-    socketio.emit('user-joined', to=room)
+    
+    # Get all existing participants in the room
+    existing_participants = []
+    for sid, conn_info in active_connections.items():
+        if conn_info['room'] == room and sid != request.sid:
+            existing_participants.append({
+                'userId': conn_info['userId'],
+                'socketId': sid
+            })
+    
+    # Send existing participants to the new user
+    emit('existing-participants', {
+        'participants': existing_participants
+    })
+    
+    # Notify existing participants about the new user
+    socketio.emit('user-joined', {
+        'userId': user_id,
+        'socketId': request.sid
+    }, to=room, include_self=False)
+
+@socketio.on('leave')
+def on_leave(data):
+    room = data['room']
+    user_id = data.get('userId')
+    
+    print(f"User {user_id} explicitly leaving room {room}")
+    
+    leave_room(room)
+    
+    # Notify other participants
+    socketio.emit('user-left', {
+        'userId': user_id,
+        'socketId': request.sid
+    }, to=room, include_self=False)
+    
+    # Remove from database
+    participants_collection.delete_one({
+        'meetingId': room,
+        'userId': user_id
+    })
+    
+    # Clean up connection
+    if request.sid in active_connections:
+        del active_connections[request.sid]
 
 # Add this with the other socket.io events
 @socketio.on('end-meeting')
@@ -195,17 +299,38 @@ def on_end_meeting(data):
         # Notify all participants
         socketio.emit('meeting-ended', {'meetingId': room}, to=room)
 
+# WebRTC signaling events - now include target socket ID
 @socketio.on('offer')
 def on_offer(data):
-    socketio.emit('offer', data, to=data['room'])
+    target_socket = data.get('targetSocket')
+    if target_socket:
+        emit('offer', {
+            'offer': data['offer'],
+            'fromSocket': request.sid,
+            'fromUserId': data.get('fromUserId'),
+            'msgId': data.get('msgId')
+        }, to=target_socket)
 
 @socketio.on('answer')
 def on_answer(data):
-    socketio.emit('answer', data, to=data['room'])
+    target_socket = data.get('targetSocket')
+    if target_socket:
+        emit('answer', {
+            'answer': data['answer'],
+            'fromSocket': request.sid,
+            'fromUserId': data.get('fromUserId'),
+            'msgId': data.get('msgId')
+        }, to=target_socket)
 
 @socketio.on('ice-candidate')
 def on_ice_candidate(data):
-    socketio.emit('ice-candidate', data, to=data['room'])
+    target_socket = data.get('targetSocket')
+    if target_socket:
+        emit('ice-candidate', {
+            'candidate': data['candidate'],
+            'fromSocket': request.sid,
+            'fromUserId': data.get('fromUserId')
+        }, to=target_socket)
 
 if __name__ == '__main__':
     print("Starting Flask-SocketIO server...")

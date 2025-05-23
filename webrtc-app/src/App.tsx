@@ -3,12 +3,26 @@ import io from "socket.io-client";
 import Auth from "./Components/Auth";
 import MeetingLobby from "./Components/MeetingLobby";
 
+interface Participant {
+  userId: string;
+  socketId: string;
+  stream?: MediaStream;
+  peerConnection?: RTCPeerConnection;
+}
+
 function App() {
   // User and Meeting state
   const [userId, setUserId] = useState<string | null>(null);
   const [username, setUsername] = useState<string | null>(null);
   const [meetingId, setMeetingId] = useState<string | null>(null);
   const [participants, setParticipants] = useState<any[]>([]);
+  const [isHost, setIsHost] = useState(false);
+
+  // Multi-participant state
+  const [remoteParticipants, setRemoteParticipants] = useState<
+    Map<string, Participant>
+  >(new Map());
+  const peerConnections = useRef<Map<string, RTCPeerConnection>>(new Map());
 
   const processedMsgIdsRef = useRef<Set<string>>(new Set());
   const [room, setRoom] = useState("");
@@ -16,8 +30,6 @@ function App() {
   const [connectionStatus, setConnectionStatus] = useState("Not connected");
   const [iceStatus, setIceStatus] = useState("");
   const localVideo = useRef<HTMLVideoElement | null>(null);
-  const remoteVideo = useRef<HTMLVideoElement | null>(null);
-  const peerConnection = useRef<RTCPeerConnection | null>(null);
   const socketRef = useRef<any>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const [isEndingMeeting, setIsEndingMeeting] = useState(false);
@@ -27,7 +39,6 @@ function App() {
     setUserId(userId);
     setUsername(username);
 
-    // Load from localStorage if available
     const storedMeetingId = localStorage.getItem("lastMeetingId");
     if (storedMeetingId) {
       setMeetingId(storedMeetingId);
@@ -39,124 +50,393 @@ function App() {
     setMeetingId(newMeetingId);
     setRoom(newMeetingId);
     setInRoom(true);
+    setIsHost(true);
     localStorage.setItem("lastMeetingId", newMeetingId);
   };
 
   // Handle joining a meeting
-  const handleJoinMeeting = (meetingIdToJoin: string) => {
+  const handleJoinMeeting = async (meetingIdToJoin: string) => {
     setMeetingId(meetingIdToJoin);
     setRoom(meetingIdToJoin);
     setInRoom(true);
+
+    // Check if user is host
+    try {
+      const response = await fetch(
+        `http://localhost:5002/api/meetings/${meetingIdToJoin}/is-host/${userId}`
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setIsHost(data.isHost);
+      }
+    } catch (err) {
+      console.error("Error checking host status:", err);
+    }
+
     localStorage.setItem("lastMeetingId", meetingIdToJoin);
   };
 
+  // Create peer connection for a specific participant
+  const createPeerConnection = (
+    participantSocketId: string,
+    isInitiator: boolean = false
+  ) => {
+    console.log(
+      `Creating peer connection for ${participantSocketId}, isInitiator: ${isInitiator}`
+    );
+
+    const pc = new RTCPeerConnection({
+      iceServers: [
+        { urls: "stun:stun.relay.metered.ca:80" },
+        {
+          urls: "turn:global.relay.metered.ca:443",
+          username: "92c0c0f3362e3c6f2f20a86d",
+          credential: "aK0V47jdAT0iaI4a",
+        },
+      ],
+      iceCandidatePoolSize: 10,
+    });
+
+    // Add local stream tracks - ensure they exist first
+    if (localStreamRef.current) {
+      const tracks = localStreamRef.current.getTracks();
+      console.log(
+        `Adding ${tracks.length} tracks to peer connection for ${participantSocketId}`
+      );
+
+      tracks.forEach((track) => {
+        console.log(`Adding ${track.kind} track to ${participantSocketId}`);
+        pc.addTrack(track, localStreamRef.current!);
+      });
+    } else {
+      console.warn(
+        `No local stream available when creating peer connection for ${participantSocketId}`
+      );
+    }
+
+    // Handle ICE candidates
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        socketRef.current.emit("ice-candidate", {
+          candidate: event.candidate,
+          targetSocket: participantSocketId,
+          fromUserId: userId,
+        });
+      }
+    };
+
+    // Handle remote stream
+    pc.ontrack = (event) => {
+      console.log(
+        `Received track from ${participantSocketId}:`,
+        event.track.kind
+      );
+
+      if (event.streams && event.streams[0]) {
+        setRemoteParticipants((prev) => {
+          const updated = new Map(prev);
+          const participant = updated.get(participantSocketId);
+          if (participant) {
+            participant.stream = event.streams[0];
+            updated.set(participantSocketId, participant);
+            console.log(`Updated stream for ${participantSocketId}`);
+          }
+          return updated;
+        });
+      }
+    };
+
+    // Handle connection state changes
+    pc.oniceconnectionstatechange = () => {
+      console.log(
+        `ICE connection state with ${participantSocketId}:`,
+        pc.iceConnectionState
+      );
+
+      if (pc.iceConnectionState === "failed") {
+        console.log(
+          `Connection failed with ${participantSocketId}, attempting restart`
+        );
+      }
+    };
+
+    peerConnections.current.set(participantSocketId, pc);
+    return pc;
+  };
+
+  // Handle when a new user joins
+  const handleUserJoined = async (data: {
+    userId: string;
+    socketId: string;
+  }) => {
+    console.log("User joined:", data);
+
+    // Ensure we have local media before creating peer connection
+    if (!localStreamRef.current) {
+      console.log("Waiting for local media before creating offer");
+      await startMedia();
+    }
+
+    // Create peer connection for new participant
+    const pc = createPeerConnection(data.socketId, true);
+
+    // Add to participants
+    setRemoteParticipants((prev) => {
+      const updated = new Map(prev);
+      updated.set(data.socketId, {
+        userId: data.userId,
+        socketId: data.socketId,
+        peerConnection: pc,
+      });
+      return updated;
+    });
+
+    // Wait a bit to ensure everything is set up
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Create and send offer
+    try {
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      socketRef.current.emit("offer", {
+        offer,
+        targetSocket: data.socketId,
+        fromUserId: userId,
+        msgId: Date.now().toString(),
+      });
+
+      console.log("Offer sent to new participant:", data.socketId);
+    } catch (error) {
+      console.error("Error creating offer:", error);
+    }
+  };
+
+  // Handle when a user leaves
+  const handleUserLeft = (data: { userId: string; socketId: string }) => {
+    console.log("User left:", data);
+
+    // Close peer connection
+    const pc = peerConnections.current.get(data.socketId);
+    if (pc) {
+      pc.close();
+      peerConnections.current.delete(data.socketId);
+    }
+
+    // Remove from participants
+    setRemoteParticipants((prev) => {
+      const updated = new Map(prev);
+      updated.delete(data.socketId);
+      return updated;
+    });
+  };
+
+  // Handle existing participants when joining
+  const handleExistingParticipants = async (data: {
+    participants: Participant[];
+  }) => {
+    console.log("Existing participants:", data.participants);
+
+    // IMPORTANT: Ensure we have local media before creating any peer connections
+    if (!localStreamRef.current) {
+      console.log(
+        "Getting local media before creating peer connections for existing participants"
+      );
+      await startMedia();
+    }
+
+    data.participants.forEach((participant) => {
+      const pc = createPeerConnection(participant.socketId, false);
+
+      setRemoteParticipants((prev) => {
+        const updated = new Map(prev);
+        updated.set(participant.socketId, {
+          ...participant,
+          peerConnection: pc,
+        });
+        return updated;
+      });
+    });
+  };
+
+  // Handle incoming offers
+  const handleOffer = async (data: {
+    offer: RTCSessionDescriptionInit;
+    fromSocket: string;
+    fromUserId: string;
+    msgId: string;
+  }) => {
+    console.log("Received offer from:", data.fromSocket);
+
+    // Ensure we have local media before handling offer
+    if (!localStreamRef.current) {
+      console.log("Getting local media before handling offer");
+      await startMedia();
+    }
+
+    let pc = peerConnections.current.get(data.fromSocket);
+    if (!pc) {
+      pc = createPeerConnection(data.fromSocket, false);
+
+      setRemoteParticipants((prev) => {
+        const updated = new Map(prev);
+        updated.set(data.fromSocket, {
+          userId: data.fromUserId,
+          socketId: data.fromSocket,
+          peerConnection: pc,
+        });
+        return updated;
+      });
+    }
+
+    try {
+      await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+
+      socketRef.current.emit("answer", {
+        answer,
+        targetSocket: data.fromSocket,
+        fromUserId: userId,
+        msgId: data.msgId,
+      });
+
+      console.log("Answer sent to:", data.fromSocket);
+    } catch (error) {
+      console.error("Error handling offer:", error);
+    }
+  };
+
+  // Handle incoming answers
+  const handleAnswer = async (data: {
+    answer: RTCSessionDescriptionInit;
+    fromSocket: string;
+    fromUserId: string;
+    msgId: string;
+  }) => {
+    console.log("Received answer from:", data.fromSocket);
+
+    const pc = peerConnections.current.get(data.fromSocket);
+    if (pc && pc.signalingState === "have-local-offer") {
+      try {
+        await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+      } catch (error) {
+        console.error("Error handling answer:", error);
+      }
+    }
+  };
+
+  // Handle ICE candidates
+  const handleIceCandidate = async (data: {
+    candidate: RTCIceCandidateInit;
+    fromSocket: string;
+    fromUserId: string;
+  }) => {
+    const pc = peerConnections.current.get(data.fromSocket);
+    if (pc) {
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+      } catch (error) {
+        console.error("Error adding ICE candidate:", error);
+      }
+    }
+  };
+
+  // Enhanced leave meeting for hosts
+  const handleLeaveMeeting = async () => {
+    if (isHost && meetingId) {
+      // Host must end meeting for all
+      const confirmEnd = window.confirm(
+        "As the host, leaving will end the meeting for all participants. Do you want to continue?"
+      );
+
+      if (confirmEnd) {
+        await handleEndMeeting();
+        return;
+      } else {
+        return; // Don't leave if host cancels
+      }
+    }
+
+    // Regular participant leave
+    if (userId && meetingId) {
+      try {
+        await fetch(`http://localhost:5002/api/meetings/${meetingId}/leave`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId }),
+        });
+      } catch (err) {
+        console.error("Error leaving meeting:", err);
+      }
+    }
+
+    // Clean up connections
+    peerConnections.current.forEach((pc) => pc.close());
+    peerConnections.current.clear();
+    setRemoteParticipants(new Map());
+
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach((track) => track.stop());
+      localStreamRef.current = null;
+    }
+
+    socketRef.current.emit("leave", { room: meetingId, userId });
+
+    setInRoom(false);
+    setMeetingId(null);
+    setIsHost(false);
+    localStorage.removeItem("lastMeetingId");
+  };
+
   const handleEndMeeting = async () => {
-    if (!meetingId || !userId) return;
+    if (!meetingId || !userId || !isHost) return;
 
     setIsEndingMeeting(true);
 
     try {
-      // First try the REST endpoint
       const response = await fetch(
         `http://localhost:5002/api/meetings/${meetingId}/end`,
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ userId }),
         }
       );
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.error("Error ending meeting:", errorData.error);
         alert(`Failed to end meeting: ${errorData.error}`);
-        setIsEndingMeeting(false); // Reset flag on error
+        setIsEndingMeeting(false);
         return;
       }
 
-      // Also emit a socket event as a backup mechanism
-      socketRef.current.emit("end-meeting", {
-        room: meetingId,
-        userId,
-      });
-
-      // Handle UI updates
+      socketRef.current.emit("end-meeting", { room: meetingId, userId });
       alert("Meeting ended successfully");
-      handleLeaveMeeting(); // Reuse leave meeting logic
+
+      // Clean up and leave
+      peerConnections.current.forEach((pc) => pc.close());
+      peerConnections.current.clear();
+      setRemoteParticipants(new Map());
+
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach((track) => track.stop());
+        localStreamRef.current = null;
+      }
+
+      setInRoom(false);
+      setMeetingId(null);
+      setIsHost(false);
+      localStorage.removeItem("lastMeetingId");
     } catch (err) {
       console.error("Error ending meeting:", err);
-      alert("Network error when ending meeting. Please try again.");
-      setIsEndingMeeting(false); // Reset flag on error
+      alert("Network error when ending meeting.");
+      setIsEndingMeeting(false);
     }
   };
-  // Leave meeting handler
-  const handleLeaveMeeting = () => {
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach((track) => track.stop());
-      localStreamRef.current = null;
-    }
 
-    if (peerConnection.current) {
-      peerConnection.current.close();
-      peerConnection.current = null;
-    }
-
-    setInRoom(false);
-    setMeetingId(null);
-    localStorage.removeItem("lastMeetingId");
-  };
-
+  // Socket setup
   useEffect(() => {
-    if (!socketRef.current) return;
-
-    const handleMeetingEnded = (data: { meetingId: string }) => {
-      if (data.meetingId === meetingId) {
-        // Only show the alert if we're not the one ending the meeting
-        if (!isEndingMeeting) {
-          alert("This meeting has been ended by the host");
-        }
-        handleLeaveMeeting();
-      }
-    };
-
-    socketRef.current.on("meeting-ended", handleMeetingEnded);
-
-    return () => {
-      if (socketRef.current) {
-        socketRef.current.off("meeting-ended", handleMeetingEnded);
-      }
-    };
-  }, [meetingId, isEndingMeeting]);
-
-  // Load participants when meeting is joined
-  useEffect(() => {
-    if (meetingId) {
-      const fetchParticipants = async () => {
-        try {
-          const response = await fetch(
-            `http://localhost:5002/api/meetings/${meetingId}/participants`
-          );
-          if (response.ok) {
-            const data = await response.json();
-            setParticipants(data);
-          }
-        } catch (err) {
-          console.error("Error fetching participants:", err);
-        }
-      };
-
-      fetchParticipants();
-      // Set up an interval to periodically refresh the participant list
-      const intervalId = setInterval(fetchParticipants, 10000);
-
-      return () => clearInterval(intervalId);
-    }
-  }, [meetingId, inRoom]);
-
-  useEffect(() => {
-    // Try to reconnect socket if it fails
     const newSocket = io("http://localhost:5002", {
       transports: ["websocket", "polling"],
       reconnectionAttempts: 5,
@@ -186,8 +466,55 @@ function App() {
     };
   }, []);
 
+  // Event listeners that depend on state
   useEffect(() => {
-    if (inRoom) {
+    if (!socketRef.current) return;
+
+    const socket = socketRef.current;
+
+    // Multi-participant event listeners
+    socket.on("user-joined", handleUserJoined);
+    socket.on("user-left", handleUserLeft);
+    socket.on("existing-participants", handleExistingParticipants);
+    socket.on("offer", handleOffer);
+    socket.on("answer", handleAnswer);
+    socket.on("ice-candidate", handleIceCandidate);
+
+    const handleMeetingEnded = (data: { meetingId: string }) => {
+      if (data.meetingId === meetingId && !isEndingMeeting) {
+        alert("This meeting has been ended by the host");
+        handleLeaveMeeting();
+      }
+    };
+
+    socket.on("meeting-ended", handleMeetingEnded);
+
+    // Cleanup previous listeners
+    return () => {
+      socket.off("user-joined", handleUserJoined);
+      socket.off("user-left", handleUserLeft);
+      socket.off("existing-participants", handleExistingParticipants);
+      socket.off("offer", handleOffer);
+      socket.off("answer", handleAnswer);
+      socket.off("ice-candidate", handleIceCandidate);
+      socket.off("meeting-ended", handleMeetingEnded);
+    };
+  }, [
+    meetingId,
+    isEndingMeeting,
+    handleUserJoined,
+    handleUserLeft,
+    handleExistingParticipants,
+    handleOffer,
+    handleAnswer,
+    handleIceCandidate,
+    handleLeaveMeeting,
+  ]);
+
+  // Start media when joining room
+  useEffect(() => {
+    if (inRoom && !localStreamRef.current) {
+      console.log("Starting media for room join");
       startMedia();
     }
 
@@ -198,384 +525,40 @@ function App() {
     };
   }, [inRoom]);
 
+  // Join room when inRoom changes
   useEffect(() => {
-    if (!inRoom || !socketRef.current) return;
+    if (inRoom && socketRef.current && userId) {
+      socketRef.current.emit("join", { room: meetingId, userId });
+    }
+  }, [inRoom, meetingId, userId]);
 
-    processedMsgIdsRef.current.clear();
-
-    const handleUserJoined = async () => {
-      console.log("User joined, creating offer");
-
-      // Ensure media is ready before proceeding
-      if (!localStreamRef.current) {
-        console.log("Waiting for local media before creating offer");
-        await startMedia();
-      }
-
-      // Create new peer connection
-      if (peerConnection.current) {
-        peerConnection.current.close();
-      }
-      peerConnection.current = createPeer();
-      setIceStatus("Setting up connection...");
-
-      // Small delay to ensure peer connection is fully initialized
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      try {
-        // Explicitly check that tracks are added
-        if (localStreamRef.current) {
-          const trackCount = localStreamRef.current.getTracks().length;
-          console.log(`Adding ${trackCount} tracks to peer connection`);
-        }
-
-        const offer = await peerConnection.current.createOffer();
-        await peerConnection.current.setLocalDescription(offer);
-
-        const msgId = Date.now().toString();
-        socketRef.current.emit("offer", { offer, room, msgId });
-        processedMsgIdsRef.current.add(msgId);
-      } catch (error) {
-        console.error("Error creating offer:", error);
-        setIceStatus("Failed to create connection offer");
-      }
-    };
-
-    const handleOffer = async ({
-      offer,
-      msgId,
-    }: {
-      offer: RTCSessionDescriptionInit;
-      msgId: string;
-    }) => {
-      if (processedMsgIdsRef.current.has(msgId)) {
-        console.log("Skipping duplicate offer");
-        return;
-      }
-      processedMsgIdsRef.current.add(msgId);
-
-      console.log("Received offer, creating answer", {
-        signalingState: peerConnection.current?.signalingState,
-      });
-      if (peerConnection.current) {
-        peerConnection.current.close();
-      }
-      peerConnection.current = createPeer();
-      setIceStatus("Received connection offer...");
-
-      try {
-        await peerConnection.current.setRemoteDescription(
-          new RTCSessionDescription(offer)
-        );
-        const answer = await peerConnection.current.createAnswer();
-        await peerConnection.current.setLocalDescription(answer);
-
-        const responseId = Date.now().toString();
-        socketRef.current.emit("answer", { answer, room, msgId: responseId });
-        processedMsgIdsRef.current.add(responseId);
-      } catch (error) {
-        console.error("Error handling offer:", error);
-        setIceStatus("Failed to create connection answer");
-      }
-    };
-
-    const handleAnswer = async ({
-      answer,
-      msgId,
-    }: {
-      answer: RTCSessionDescriptionInit;
-      msgId: string;
-    }) => {
-      if (processedMsgIdsRef.current.has(msgId)) {
-        console.log("Skipping duplicate answer");
-        return;
-      }
-      processedMsgIdsRef.current.add(msgId);
-
-      console.log(
-        "Received answer, signaling state:",
-        peerConnection.current?.signalingState
-      );
-
-      try {
-        if (peerConnection.current) {
-          const state = peerConnection.current.signalingState;
-
-          if (state === "have-local-offer") {
-            await peerConnection.current.setRemoteDescription(
-              new RTCSessionDescription(answer)
-            );
-            setIceStatus(
-              "Connection answer received, establishing connection..."
-            );
-          } else if (state === "stable") {
-            console.log("Ignoring answer - already in stable state");
-          } else {
-            console.warn(
-              `Ignoring answer - connection in wrong state: ${state}`
-            );
-            setIceStatus(`Cannot process answer in state: ${state}`);
-
-            if (
-              state === "have-remote-offer" ||
-              state === "have-remote-pranswer"
-            ) {
-              console.log("Resetting connection due to invalid state");
-              peerConnection.current.close();
-              peerConnection.current = createPeer();
-              socketRef.current.emit("join", { room });
-            }
-          }
-        } else {
-          console.warn("Ignoring answer - no peer connection");
-        }
-      } catch (error) {
-        console.error("Error handling answer:", error);
-        if (error instanceof Error) {
-          setIceStatus(`Failed to process connection answer: ${error.message}`);
-        } else {
-          setIceStatus("Failed to process connection answer: Unknown error");
-        }
-      }
-    };
-
-    const handleIceCandidate = ({
-      candidate,
-    }: {
-      candidate: RTCIceCandidateInit;
-    }) => {
-      if (candidate && peerConnection.current) {
+  // Fetch participants periodically
+  useEffect(() => {
+    if (meetingId) {
+      const fetchParticipants = async () => {
         try {
-          peerConnection.current.addIceCandidate(
-            new RTCIceCandidate(candidate)
+          const response = await fetch(
+            `http://localhost:5002/api/meetings/${meetingId}/participants`
           );
-        } catch (error) {
-          console.error("Error adding ICE candidate:", error);
-        }
-      }
-    };
-
-    socketRef.current.on("user-joined", handleUserJoined);
-    socketRef.current.on("offer", handleOffer);
-    socketRef.current.on("answer", handleAnswer);
-    socketRef.current.on("ice-candidate", handleIceCandidate);
-
-    socketRef.current.emit("join", { room });
-
-    return () => {
-      socketRef.current.off("user-joined", handleUserJoined);
-      socketRef.current.off("offer", handleOffer);
-      socketRef.current.off("answer", handleAnswer);
-      socketRef.current.off("ice-candidate", handleIceCandidate);
-
-      if (peerConnection.current) {
-        peerConnection.current.close();
-        peerConnection.current = null;
-      }
-      setIceStatus("");
-    };
-  }, [inRoom, room]);
-
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible" && inRoom) {
-        console.log("Tab became visible, checking connection...");
-
-        if (
-          peerConnection.current &&
-          peerConnection.current.connectionState !== "connected" &&
-          (!remoteVideo.current || !remoteVideo.current.srcObject)
-        ) {
-          console.log("No remote video, attempting reconnection");
-          socketRef.current.emit("join", { room });
-        }
-      }
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, [inRoom, room]);
-
-  const handleJoinRoom = () => {
-    if (socketRef.current?.connected) {
-      setInRoom(true);
-    } else {
-      alert("Socket not connected. Cannot join room.");
-    }
-  };
-
-  function createPeer() {
-    const pc = new RTCPeerConnection({
-      iceServers: [
-        {
-          urls: "stun:stun.relay.metered.ca:80",
-        },
-        {
-          urls: "turn:global.relay.metered.ca:443",
-          username: "92c0c0f3362e3c6f2f20a86d",
-          credential: "aK0V47jdAT0iaI4a",
-        },
-        {
-          urls: "turns:global.relay.metered.ca:443?transport=tcp",
-          username: "92c0c0f3362e3c6f2f20a86d",
-          credential: "aK0V47jdAT0iaI4a",
-        },
-      ],
-      iceCandidatePoolSize: 10,
-    });
-
-    pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        socketRef.current.emit("ice-candidate", {
-          candidate: event.candidate,
-          room,
-        });
-      }
-    };
-
-    pc.ontrack = (event) => {
-      console.log("Received remote track:", event.track.kind, event.streams);
-
-      if (remoteVideo.current && event.streams && event.streams[0]) {
-        console.log("Setting remote stream");
-
-        // Store the remote stream for reconnection purposes
-        if (event.track.kind === "video") {
-          console.log("Remote video track received");
-
-          // Set srcObject and immediately attempt to play
-          remoteVideo.current.srcObject = event.streams[0];
-
-          // Try playing immediately and also with a backup timeout
-          remoteVideo.current
-            .play()
-            .then(() => console.log("Remote video playing immediately"))
-            .catch((err) => {
-              console.log("Will retry playing in timeout", err);
-              // Continue with the timeout approach as fallback
-            });
-
-          // Backup timeout for browsers with autoplay restrictions
-          setTimeout(() => {
-            if (remoteVideo.current && remoteVideo.current.paused) {
-              console.log(
-                "Attempting to play remote video again after timeout"
-              );
-              remoteVideo.current
-                .play()
-                .then(() => console.log("Remote video playing after timeout"))
-                .catch((err) => {
-                  console.error(
-                    "Error playing remote video after timeout:",
-                    err
-                  );
-                  setIceStatus("Error playing remote video: " + err.message);
-                });
-            }
-          }, 1000);
-        }
-
-        // Monitor track status for debugging
-        event.track.onunmute = () => {
-          console.log("Track unmuted:", event.track.kind);
-          // Try to play again when unmuted
-          if (
-            event.track.kind === "video" &&
-            remoteVideo.current &&
-            remoteVideo.current.paused
-          ) {
-            remoteVideo.current
-              .play()
-              .then(() => console.log("Video playing after unmute"))
-              .catch((err) =>
-                console.error("Failed to play after unmute:", err)
-              );
+          if (response.ok) {
+            const data = await response.json();
+            setParticipants(data);
           }
-        };
-      } else {
-        console.warn("Remote video element or stream not available", {
-          videoElement: !!remoteVideo.current,
-          streams: !!event.streams,
-          hasStream: event.streams && event.streams.length > 0,
-        });
-      }
-    };
+        } catch (err) {
+          console.error("Error fetching participants:", err);
+        }
+      };
 
-    pc.oniceconnectionstatechange = () => {
-      const state = pc.iceConnectionState;
-      console.log("ICE connection state:", state);
-
-      switch (state) {
-        case "checking":
-          setIceStatus("Connecting...");
-          break;
-        case "connected":
-          setIceStatus("Connected");
-          break;
-        case "completed":
-          setIceStatus("Connection established");
-          break;
-        case "failed":
-          setIceStatus("Connection failed - attempting to reconnect");
-          console.warn(
-            "ICE Connection failed. Attempting to restart connection."
-          );
-
-          if (peerConnection.current) {
-            const restartConnection = async () => {
-              try {
-                if (peerConnection.current?.signalingState === "stable") {
-                  const restartOffer = await peerConnection.current.createOffer(
-                    {
-                      iceRestart: true,
-                    }
-                  );
-                  await peerConnection.current.setLocalDescription(
-                    restartOffer
-                  );
-
-                  const restartMsgId = `restart-${Date.now()}`;
-                  socketRef.current.emit("offer", {
-                    offer: restartOffer,
-                    room,
-                    msgId: restartMsgId,
-                  });
-                  processedMsgIdsRef.current.add(restartMsgId);
-                }
-              } catch (err) {
-                console.error("Failed to restart ICE:", err);
-                setIceStatus("Connection failed - please refresh the page");
-              }
-            };
-
-            restartConnection();
-          }
-          break;
-        case "disconnected":
-          setIceStatus("Disconnected - attempting to reconnect");
-          break;
-        case "closed":
-          setIceStatus("Connection closed");
-          break;
-      }
-    };
-
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach((track) => {
-        pc.addTrack(track, localStreamRef.current!);
-      });
+      fetchParticipants();
+      const intervalId = setInterval(fetchParticipants, 10000);
+      return () => clearInterval(intervalId);
     }
-
-    return pc;
-  }
+  }, [meetingId, inRoom]);
 
   async function startMedia() {
     try {
-      // Check if we already have media
       if (localStreamRef.current) {
-        console.log("Using existing local stream");
+        console.log("Local stream already exists");
         return localStreamRef.current;
       }
 
@@ -586,7 +569,7 @@ function App() {
       });
 
       console.log(
-        "Local media obtained",
+        "Local media obtained:",
         stream.getTracks().map((t) => t.kind)
       );
       localStreamRef.current = stream;
@@ -596,8 +579,8 @@ function App() {
         try {
           await localVideo.current.play();
           console.log("Local video playing");
-        } catch (err) {
-          console.warn("Could not autoplay local video:", err);
+        } catch (playError) {
+          console.warn("Could not autoplay local video:", playError);
         }
       }
 
@@ -633,77 +616,88 @@ function App() {
           padding: "10px",
           backgroundColor:
             connectionStatus === "Connected" ? "#d4edda" : "#f8d7da",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
         }}
       >
-        Socket Status: {connectionStatus}
+        <span>Socket Status: {connectionStatus}</span>
+        <span>
+          Meeting: {meetingId} {isHost && "(Host)"}
+        </span>
       </div>
-      {!inRoom ? (
-        <div>
-          <h2>Enter Room Number</h2>
-          <input value={room} onChange={(e) => setRoom(e.target.value)} />
-          <button
-            onClick={handleJoinRoom}
-            disabled={connectionStatus !== "Connected"}
-          >
-            Join Room
-          </button>
-        </div>
-      ) : (
-        <div>
-          <h3>Room: {room}</h3>
 
-          <div
+      <div style={{ padding: "20px" }}>
+        <div style={{ marginBottom: "20px" }}>
+          <h4>Participants ({participants.length})</h4>
+          <ul style={{ listStyle: "none", padding: 0 }}>
+            {participants.map((p) => (
+              <li key={p.userId}>
+                {p.displayName || p.username}
+                {p.isHost && " (Host)"}
+                {p.userId === userId && " (You)"}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Video Grid */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+            gap: "20px",
+            marginBottom: "20px",
+          }}
+        >
+          {/* Local Video */}
+          <div>
+            <h4>You ({username})</h4>
+            <video
+              autoPlay
+              muted
+              ref={localVideo}
+              style={{
+                width: "100%",
+                maxWidth: "300px",
+                border: "2px solid #007bff",
+                borderRadius: "8px",
+              }}
+            />
+          </div>
+
+          {/* Remote Videos */}
+          {Array.from(remoteParticipants.values()).map((participant) => (
+            <RemoteVideoComponent
+              key={participant.socketId}
+              participant={participant}
+              participants={participants}
+            />
+          ))}
+        </div>
+
+        {/* Controls */}
+        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+          <button
+            onClick={handleLeaveMeeting}
             style={{
-              padding: "8px",
-              marginBottom: "10px",
-              backgroundColor:
-                iceStatus === "Connection established" ||
-                iceStatus === "Connected"
-                  ? "#d4edda"
-                  : iceStatus.includes("failed")
-                  ? "#f8d7da"
-                  : "#fff3cd",
+              padding: "10px 20px",
+              backgroundColor: "#dc3545",
+              color: "white",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
+              fontWeight: "bold",
             }}
           >
-            WebRTC Status: {iceStatus}
-          </div>
-          <div style={{ marginTop: "20px" }}>
-            <h4>Participants ({participants.length})</h4>
-            <ul style={{ listStyle: "none", padding: 0 }}>
-              {participants.map((p) => (
-                <li key={p.userId}>
-                  {p.displayName || p.username}
-                  {p.isHost && " (Host)"}
-                  {p.userId === userId && " (You)"}
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div style={{ display: "flex", gap: "20px" }}>
-            <div>
-              <h4>Local Video</h4>
-              <video
-                autoPlay
-                muted
-                ref={localVideo}
-                style={{ width: 300, border: "1px solid #ccc" }}
-              ></video>
-            </div>
-            <div>
-              <h4>Remote Video</h4>
-              <video
-                autoPlay
-                playsInline
-                ref={remoteVideo}
-                style={{ width: 300, border: "1px solid #ccc" }}
-              ></video>
-            </div>
-          </div>
-          <div style={{ marginTop: "15px" }}>
+            {isHost ? "End Meeting For All" : "Leave Meeting"}
+          </button>
+
+          {isHost && (
             <button
-              onClick={handleLeaveMeeting}
+              onClick={handleEndMeeting}
               style={{
-                padding: "8px 15px",
+                padding: "10px 20px",
                 backgroundColor: "#dc3545",
                 color: "white",
                 border: "none",
@@ -712,51 +706,71 @@ function App() {
                 fontWeight: "bold",
               }}
             >
-              Leave Room
+              Force End Meeting
             </button>
-            {participants.some((p) => p.userId === userId && p.isHost) && (
-              <button
-                onClick={handleEndMeeting}
-                style={{
-                  padding: "8px 15px",
-                  backgroundColor: "#dc3545",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "4px",
-                  cursor: "pointer",
-                  fontWeight: "bold",
-                  marginLeft: "10px",
-                }}
-              >
-                End Meeting For All
-              </button>
-            )}
-            <button
-              style={{
-                padding: "8px 15px",
-                backgroundColor: "#9fdc35",
-                color: "white",
-                border: "none",
-                borderRadius: "4px",
-                cursor: "pointer",
-                fontWeight: "bold",
-              }}
-              onClick={() => {
-                if (peerConnection.current) {
-                  peerConnection.current.close();
-                  peerConnection.current = createPeer();
-                }
-                socketRef.current.emit("join", { room });
-                setIceStatus("Reconnecting...");
-              }}
-            >
-              Reconnect Video
-            </button>
-          </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Component for rendering remote participant videos
+const RemoteVideoComponent: React.FC<{
+  participant: Participant;
+  participants: any[];
+}> = ({ participant, participants }) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (videoRef.current && participant.stream) {
+      videoRef.current.srcObject = participant.stream;
+      videoRef.current.play().catch(console.error);
+    }
+  }, [participant.stream]);
+
+  const participantInfo = participants.find(
+    (p) => p.userId === participant.userId
+  );
+  const displayName =
+    participantInfo?.displayName || participantInfo?.username || "Unknown";
+
+  return (
+    <div>
+      <h4>
+        {displayName} {participantInfo?.isHost && "(Host)"}
+      </h4>
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        style={{
+          width: "100%",
+          maxWidth: "300px",
+          border: "1px solid #ccc",
+          borderRadius: "8px",
+          backgroundColor: "#000",
+        }}
+      />
+      {!participant.stream && (
+        <div
+          style={{
+            width: "100%",
+            maxWidth: "300px",
+            height: "200px",
+            backgroundColor: "#f0f0f0",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            border: "1px solid #ccc",
+            borderRadius: "8px",
+          }}
+        >
+          Connecting...
         </div>
       )}
     </div>
   );
-}
+};
 
 export default App;
