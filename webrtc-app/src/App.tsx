@@ -24,9 +24,13 @@ function App() {
   >(new Map());
   const peerConnections = useRef<Map<string, RTCPeerConnection>>(new Map());
 
+  // Zoom-like UI state
+  const [mainParticipant, setMainParticipant] = useState<string | null>(null);
   const [room, setRoom] = useState("");
   const [inRoom, setInRoom] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState("Not connected");
+  const [isMuted, setIsMuted] = useState(false);
+  const [isVideoOff, setIsVideoOff] = useState(false);
 
   const localVideo = useRef<HTMLVideoElement | null>(null);
   const socketRef = useRef<any>(null);
@@ -554,6 +558,113 @@ function App() {
     }
   }, [meetingId, inRoom]);
 
+  // Enhanced toggle video function
+  const toggleVideo = async () => {
+    if (!localStreamRef.current) return;
+
+    if (isVideoOff) {
+      // Turning video back on - need to get new video stream
+      try {
+        const newStream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: true,
+        });
+
+        // Stop old tracks first
+        if (localStreamRef.current) {
+          localStreamRef.current.getTracks().forEach((track) => track.stop());
+        }
+
+        // Update local stream reference
+        localStreamRef.current = newStream;
+
+        // Update local video element
+        if (localVideo.current) {
+          localVideo.current.srcObject = newStream;
+          try {
+            await localVideo.current.play();
+            console.log("Local video restarted successfully");
+          } catch (playError) {
+            console.warn("Could not autoplay restarted video:", playError);
+            // Try to play manually after a short delay
+            setTimeout(async () => {
+              try {
+                if (localVideo.current) {
+                  await localVideo.current.play();
+                }
+              } catch (retryError) {
+                console.error(
+                  "Failed to restart video after retry:",
+                  retryError
+                );
+              }
+            }, 100);
+          }
+        }
+
+        // Update all existing peer connections with new video track
+        const videoTrack = newStream.getVideoTracks()[0];
+        const audioTrack = newStream.getAudioTracks()[0];
+
+        peerConnections.current.forEach(async (pc, socketId) => {
+          try {
+            // Replace video track
+            const videoSender = pc
+              .getSenders()
+              .find((sender) => sender.track && sender.track.kind === "video");
+            if (videoSender && videoTrack) {
+              await videoSender.replaceTrack(videoTrack);
+              console.log(`Replaced video track for ${socketId}`);
+            } else if (videoTrack) {
+              // Add video track if it doesn't exist
+              pc.addTrack(videoTrack, newStream);
+              console.log(`Added video track for ${socketId}`);
+            }
+
+            // Replace audio track
+            const audioSender = pc
+              .getSenders()
+              .find((sender) => sender.track && sender.track.kind === "audio");
+            if (audioSender && audioTrack) {
+              await audioSender.replaceTrack(audioTrack);
+              console.log(`Replaced audio track for ${socketId}`);
+            } else if (audioTrack) {
+              // Add audio track if it doesn't exist
+              pc.addTrack(audioTrack, newStream);
+              console.log(`Added audio track for ${socketId}`);
+            }
+          } catch (error) {
+            console.error(`Error updating tracks for ${socketId}:`, error);
+          }
+        });
+
+        setIsVideoOff(false);
+      } catch (error) {
+        console.error("Error restarting video:", error);
+        alert("Failed to restart camera. Please check permissions.");
+      }
+    } else {
+      // Turning video off - just disable the track
+      const videoTracks = localStreamRef.current.getVideoTracks();
+      videoTracks.forEach((track) => {
+        track.enabled = false;
+      });
+      setIsVideoOff(true);
+    }
+  };
+
+  // Enhanced toggle audio function
+  const toggleAudio = () => {
+    if (localStreamRef.current) {
+      const audioTracks = localStreamRef.current.getAudioTracks();
+      audioTracks.forEach((track) => {
+        track.enabled = !track.enabled;
+      });
+      setIsMuted(!isMuted);
+    }
+  };
+
+  // Enhanced startMedia function with better error handling
   async function startMedia() {
     try {
       if (localStreamRef.current) {
@@ -563,8 +674,16 @@ function App() {
 
       console.log("Requesting access to local media");
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true,
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          frameRate: { ideal: 30 },
+        },
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
       });
 
       console.log(
@@ -575,11 +694,59 @@ function App() {
 
       if (localVideo.current) {
         localVideo.current.srcObject = stream;
+
+        // Add event listeners for better debugging
+        localVideo.current.onloadedmetadata = () => {
+          console.log("Video metadata loaded");
+        };
+
+        localVideo.current.oncanplay = () => {
+          console.log("Video can play");
+        };
+
+        localVideo.current.onerror = (error) => {
+          console.error("Video element error:", error);
+        };
+
         try {
+          // Set video properties before playing
+          localVideo.current.muted = true;
+          localVideo.current.playsInline = true;
+          localVideo.current.autoplay = true;
+
           await localVideo.current.play();
           console.log("Local video playing");
         } catch (playError) {
           console.warn("Could not autoplay local video:", playError);
+
+          // Fallback: try to play after user interaction
+          const playVideoOnInteraction = async () => {
+            try {
+              if (localVideo.current) {
+                await localVideo.current.play();
+                console.log("Video started after user interaction");
+                // Remove event listeners after successful play
+                document.removeEventListener("click", playVideoOnInteraction);
+                document.removeEventListener(
+                  "touchstart",
+                  playVideoOnInteraction
+                );
+              }
+            } catch (interactionError) {
+              console.error(
+                "Failed to play video after interaction:",
+                interactionError
+              );
+            }
+          };
+
+          // Wait for user interaction
+          document.addEventListener("click", playVideoOnInteraction, {
+            once: true,
+          });
+          document.addEventListener("touchstart", playVideoOnInteraction, {
+            once: true,
+          });
         }
       }
 
@@ -590,6 +757,11 @@ function App() {
       return null;
     }
   }
+
+  // Switch main participant view
+  const switchToMainView = (participantId: string | null) => {
+    setMainParticipant(participantId);
+  };
 
   // If not authenticated, show login
   if (!userId || !username) {
@@ -608,8 +780,30 @@ function App() {
     );
   }
 
+  // Get the main participant to display
+  const getMainParticipantStream = () => {
+    if (mainParticipant) {
+      // If a remote participant is selected as main
+      const found = Array.from(remoteParticipants.values()).find(
+        (p) => p.userId === mainParticipant
+      );
+      if (found && found.stream) {
+        return { stream: found.stream, isLocal: false, userId: found.userId };
+      }
+    }
+
+    // Default to local user if no main participant selected or not found
+    return { stream: localStreamRef.current, isLocal: true, userId: userId };
+  };
+
+  const mainView = getMainParticipantStream();
+  const mainParticipantInfo = mainView.isLocal
+    ? { displayName: username, isHost }
+    : participants.find((p) => p.userId === mainView.userId);
+
   return (
-    <div>
+    <div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
+      {/* Status bar */}
       <div
         style={{
           padding: "10px",
@@ -620,157 +814,412 @@ function App() {
           alignItems: "center",
         }}
       >
-        <span>Socket Status: {connectionStatus}</span>
         <span>
-          Meeting: {meetingId} {isHost && "(Host)"}
+          Meeting ID: {meetingId} {isHost && "(Host)"}
         </span>
+        <span>Status: {connectionStatus}</span>
       </div>
 
-      <div style={{ padding: "20px" }}>
-        <div style={{ marginBottom: "20px" }}>
-          <h4>Participants ({participants.length})</h4>
-          <ul style={{ listStyle: "none", padding: 0 }}>
-            {participants.map((p) => (
-              <li key={p.userId}>
-                {p.displayName || p.username}
-                {p.isHost && " (Host)"}
-                {p.userId === userId && " (You)"}
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        {/* Video Grid */}
+      {/* Main content area */}
+      <div
+        style={{
+          display: "flex",
+          flex: 1,
+          height: "calc(100vh - 130px)",
+          overflow: "hidden",
+        }}
+      >
+        {/* Main video display */}
         <div
           style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-            gap: "20px",
-            marginBottom: "20px",
+            flex: 1,
+            padding: "20px",
+            display: "flex",
+            flexDirection: "column",
+            position: "relative",
           }}
         >
-          {/* Local Video */}
-          <div>
-            <h4>You ({username})</h4>
-            <video
-              autoPlay
-              muted
-              ref={localVideo}
+          <div
+            style={{
+              flex: 1,
+              backgroundColor: "#000",
+              borderRadius: "8px",
+              position: "relative",
+              overflow: "hidden",
+            }}
+          >
+            {/* Main participant name */}
+            <div
               style={{
-                width: "100%",
-                maxWidth: "300px",
-                border: "2px solid #007bff",
-                borderRadius: "8px",
+                position: "absolute",
+                bottom: "20px",
+                left: "20px",
+                backgroundColor: "rgba(0,0,0,0.5)",
+                color: "white",
+                padding: "5px 10px",
+                borderRadius: "4px",
+                zIndex: 2,
               }}
+            >
+              {mainView.isLocal
+                ? `You (${username})`
+                : mainParticipantInfo?.displayName || "Unknown"}{" "}
+              {mainParticipantInfo?.isHost && " (Host)"}
+            </div>
+
+            {/* Main video */}
+            {mainView.isLocal ? (
+              <video
+                ref={localVideo}
+                autoPlay
+                muted
+                playsInline
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  transform: "scaleX(-1)", // Mirror local video
+                }}
+              />
+            ) : (
+              <MainVideoComponent stream={mainView.stream} />
+            )}
+          </div>
+        </div>
+
+        {/* Participant sidebar */}
+        <div
+          style={{
+            width: "220px",
+            backgroundColor: "#f8f9fa",
+            overflowY: "auto",
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          <div
+            style={{
+              padding: "10px",
+              borderBottom: "1px solid #dee2e6",
+            }}
+          >
+            <h5 style={{ margin: "0 0 10px 0" }}>
+              Participants ({participants.length})
+            </h5>
+          </div>
+
+          {/* Local user thumbnail */}
+          <div style={{ padding: "10px" }}>
+            <ParticipantThumbnail
+              isLocal={true}
+              stream={localStreamRef.current}
+              userId={userId || ""}
+              displayName={username || "You"}
+              isHost={isHost}
+              isActive={mainParticipant === null}
+              onClick={() => switchToMainView(null)}
+              isMuted={isMuted}
+              isVideoOff={isVideoOff}
             />
           </div>
 
-          {/* Remote Videos */}
-          {Array.from(remoteParticipants.values()).map((participant) => (
-            <RemoteVideoComponent
-              key={participant.socketId}
-              participant={participant}
-              participants={participants}
-            />
-          ))}
+          {/* Remote participants */}
+          <div style={{ padding: "0 10px" }}>
+            {Array.from(remoteParticipants.values()).map((participant) => {
+              const info = participants.find(
+                (p) => p.userId === participant.userId
+              );
+              const displayName =
+                info?.displayName || info?.username || "Unknown";
+              return (
+                <ParticipantThumbnail
+                  key={participant.socketId}
+                  isLocal={false}
+                  stream={participant.stream}
+                  userId={participant.userId}
+                  displayName={displayName}
+                  isHost={info?.isHost || false}
+                  isActive={mainParticipant === participant.userId}
+                  onClick={() => switchToMainView(participant.userId)}
+                />
+              );
+            })}
+          </div>
         </div>
+      </div>
 
-        {/* Controls */}
-        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-          <button
-            onClick={handleLeaveMeeting}
-            style={{
-              padding: "10px 20px",
-              backgroundColor: "#dc3545",
-              color: "white",
-              border: "none",
-              borderRadius: "4px",
-              cursor: "pointer",
-              fontWeight: "bold",
-            }}
-          >
-            {isHost ? "End Meeting For All" : "Leave Meeting"}
-          </button>
+      {/* Controls */}
+      <div
+        style={{
+          padding: "15px",
+          backgroundColor: "#343a40",
+          display: "flex",
+          justifyContent: "center",
+          gap: "15px",
+        }}
+      >
+        <button
+          onClick={toggleAudio}
+          style={{
+            padding: "10px",
+            borderRadius: "50%",
+            border: "none",
+            width: "50px",
+            height: "50px",
+            backgroundColor: isMuted ? "#dc3545" : "#6c757d",
+            color: "white",
+            cursor: "pointer",
+          }}
+          title={isMuted ? "Unmute" : "Mute"}
+        >
+          {isMuted ? "🔇" : "🎤"}
+        </button>
 
-          {isHost && (
-            <button
-              onClick={handleEndMeeting}
-              style={{
-                padding: "10px 20px",
-                backgroundColor: "#dc3545",
-                color: "white",
-                border: "none",
-                borderRadius: "4px",
-                cursor: "pointer",
-                fontWeight: "bold",
-              }}
-            >
-              Force End Meeting
-            </button>
-          )}
-        </div>
+        <button
+          onClick={toggleVideo}
+          style={{
+            padding: "10px",
+            borderRadius: "50%",
+            border: "none",
+            width: "50px",
+            height: "50px",
+            backgroundColor: isVideoOff ? "#dc3545" : "#6c757d",
+            color: "white",
+            cursor: "pointer",
+          }}
+          title={isVideoOff ? "Start Video" : "Stop Video"}
+        >
+          {isVideoOff ? "📵" : "📹"}
+        </button>
+
+        <button
+          onClick={handleLeaveMeeting}
+          style={{
+            padding: "10px 20px",
+            backgroundColor: "#dc3545",
+            color: "white",
+            border: "none",
+            borderRadius: "4px",
+            cursor: "pointer",
+            fontWeight: "bold",
+          }}
+        >
+          {isHost ? "End Meeting" : "Leave"}
+        </button>
       </div>
     </div>
   );
 }
 
-// Component for rendering remote participant videos
-const RemoteVideoComponent: React.FC<{
-  participant: Participant;
-  participants: any[];
-}> = ({ participant, participants }) => {
+// Component for the main video display when showing a remote participant
+const MainVideoComponent: React.FC<{ stream: MediaStream | null }> = ({
+  stream,
+}) => {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
-    if (videoRef.current && participant.stream) {
-      videoRef.current.srcObject = participant.stream;
+    if (videoRef.current && stream) {
+      videoRef.current.srcObject = stream;
       videoRef.current.play().catch(console.error);
     }
-  }, [participant.stream]);
+  }, [stream]);
 
-  const participantInfo = participants.find(
-    (p) => p.userId === participant.userId
-  );
-  const displayName =
-    participantInfo?.displayName || participantInfo?.username || "Unknown";
+  if (!stream) {
+    return (
+      <div
+        style={{
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: "#343a40",
+          color: "white",
+        }}
+      >
+        No video available
+      </div>
+    );
+  }
 
   return (
-    <div>
-      <h4>
-        {displayName} {participantInfo?.isHost && "(Host)"}
-      </h4>
+    <video
+      ref={videoRef}
+      autoPlay
+      playsInline
+      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+    />
+  );
+};
 
-      {/* Show video if stream exists */}
-      {participant.stream ? (
+// Component for participant thumbnails in the sidebar
+const ParticipantThumbnail: React.FC<{
+  isLocal: boolean;
+  stream: MediaStream | null | undefined;
+  userId: string;
+  displayName: string;
+  isHost: boolean;
+  isActive: boolean;
+  onClick: () => void;
+  isMuted?: boolean;
+  isVideoOff?: boolean;
+}> = ({
+  isLocal,
+  stream,
+  userId,
+  displayName,
+  isHost,
+  isActive,
+  onClick,
+  isMuted,
+  isVideoOff,
+}) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (videoRef.current && stream) {
+      videoRef.current.srcObject = stream;
+
+      if (!isLocal) {
+        // Add error handling for remote video
+        videoRef.current.onloadedmetadata = () => {
+          console.log(`Remote video metadata loaded for ${displayName}`);
+        };
+
+        videoRef.current.onerror = (error) => {
+          console.error(`Remote video error for ${displayName}:`, error);
+        };
+
+        videoRef.current.play().catch((error) => {
+          console.error(
+            `Failed to play remote video for ${displayName}:`,
+            error
+          );
+        });
+      } else {
+        // For local video, ensure it's muted and auto-plays
+        videoRef.current.muted = true;
+        videoRef.current.playsInline = true;
+        videoRef.current.autoplay = true;
+      }
+    }
+  }, [stream, isLocal, displayName]);
+
+  // Handle video visibility for local video when toggled off
+  const showVideo = stream && (!isVideoOff || !isLocal);
+
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        marginBottom: "10px",
+        cursor: "pointer",
+        border: isActive ? "2px solid #0d6efd" : "1px solid #dee2e6",
+        borderRadius: "4px",
+        overflow: "hidden",
+        backgroundColor: "#000",
+        position: "relative",
+        height: "120px",
+      }}
+    >
+      {/* Video thumbnail */}
+      {showVideo ? (
         <video
           ref={videoRef}
           autoPlay
+          muted={isLocal}
           playsInline
           style={{
             width: "100%",
-            maxWidth: "300px",
-            border: "1px solid #ccc",
-            borderRadius: "8px",
-            backgroundColor: "#000",
+            height: "100%",
+            objectFit: "cover",
+            transform: isLocal ? "scaleX(-1)" : "none", // Mirror only local video
           }}
         />
       ) : (
         <div
           style={{
             width: "100%",
-            maxWidth: "300px",
-            height: "200px",
-            backgroundColor: "#f0f0f0",
+            height: "100%",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            border: "1px solid #ccc",
-            borderRadius: "8px",
+            backgroundColor: "#6c757d",
+            color: "white",
+            fontSize: "24px",
           }}
         >
-          Connecting...
+          {displayName.charAt(0).toUpperCase()}
         </div>
       )}
+
+      {/* Name label */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: "0",
+          left: "0",
+          right: "0",
+          backgroundColor: "rgba(0,0,0,0.5)",
+          color: "white",
+          padding: "2px 5px",
+          fontSize: "12px",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+        }}
+      >
+        {isLocal ? "You" : displayName} {isHost && "👑"}
+      </div>
+
+      {/* Status indicators */}
+      <div
+        style={{
+          position: "absolute",
+          top: "5px",
+          left: "5px",
+          display: "flex",
+          gap: "5px",
+        }}
+      >
+        {/* Audio status indicator */}
+        {isLocal && isMuted && (
+          <div
+            style={{
+              backgroundColor: "rgba(220,53,69,0.8)",
+              color: "white",
+              borderRadius: "50%",
+              width: "20px",
+              height: "20px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "10px",
+            }}
+          >
+            🔇
+          </div>
+        )}
+
+        {/* Video status indicator */}
+        {isLocal && isVideoOff && (
+          <div
+            style={{
+              backgroundColor: "rgba(220,53,69,0.8)",
+              color: "white",
+              borderRadius: "50%",
+              width: "20px",
+              height: "20px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "10px",
+            }}
+          >
+            📵
+          </div>
+        )}
+      </div>
     </div>
   );
 };
