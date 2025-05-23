@@ -24,11 +24,10 @@ function App() {
   >(new Map());
   const peerConnections = useRef<Map<string, RTCPeerConnection>>(new Map());
 
-  const processedMsgIdsRef = useRef<Set<string>>(new Set());
   const [room, setRoom] = useState("");
   const [inRoom, setInRoom] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState("Not connected");
-  const [iceStatus, setIceStatus] = useState("");
+
   const localVideo = useRef<HTMLVideoElement | null>(null);
   const socketRef = useRef<any>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
