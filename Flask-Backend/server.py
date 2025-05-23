@@ -1,5 +1,3 @@
-import monkey_patch
-
 # Now import Flask and other modules
 from flask import Flask
 from flask_socketio import SocketIO, emit, join_room
@@ -10,9 +8,11 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 
 # Simplified Socket.IO configuration
 socketio = SocketIO(
-    app,
-    cors_allowed_origins="*",  # Try with wildcard for testing
-    async_mode=None
+    app, 
+    cors_allowed_origins="*", 
+    logger=True, 
+    engineio_logger=True,
+    async_mode='threading'  # Use threading instead of eventlet
 )
 
 @app.route('/')
@@ -48,4 +48,4 @@ def on_ice_candidate(data):
 
 if __name__ == '__main__':
     print("Starting Flask-SocketIO server...")
-    socketio.run(app, host='0.0.0.0', port=5000, debug=True)
+    socketio.run(app, host='0.0.0.0', port=5002, debug=True)

@@ -8,7 +8,7 @@ export default defineConfig({
     cors: true,
     proxy: {
       "/socket.io": {
-        target: "http://localhost:5000",
+        target: "http://localhost:5002",
         ws: true,
         changeOrigin: true,
         secure: false,
