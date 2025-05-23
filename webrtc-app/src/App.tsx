@@ -740,19 +740,22 @@ const RemoteVideoComponent: React.FC<{
       <h4>
         {displayName} {participantInfo?.isHost && "(Host)"}
       </h4>
-      <video
-        ref={videoRef}
-        autoPlay
-        playsInline
-        style={{
-          width: "100%",
-          maxWidth: "300px",
-          border: "1px solid #ccc",
-          borderRadius: "8px",
-          backgroundColor: "#000",
-        }}
-      />
-      {!participant.stream && (
+
+      {/* Show video if stream exists */}
+      {participant.stream ? (
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          style={{
+            width: "100%",
+            maxWidth: "300px",
+            border: "1px solid #ccc",
+            borderRadius: "8px",
+            backgroundColor: "#000",
+          }}
+        />
+      ) : (
         <div
           style={{
             width: "100%",
