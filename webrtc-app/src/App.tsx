@@ -14,8 +14,12 @@ function App() {
   const localStreamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
+    // Try to reconnect socket if it fails
     const newSocket = io("http://localhost:5002", {
-      transports: ["websocket", "polling", "flashsocket"],
+      transports: ["websocket", "polling"],
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      timeout: 10000,
     });
 
     newSocket.on("connect", () => {
@@ -59,13 +63,30 @@ function App() {
 
     const handleUserJoined = async () => {
       console.log("User joined, creating offer");
+
+      // Ensure media is ready before proceeding
+      if (!localStreamRef.current) {
+        console.log("Waiting for local media before creating offer");
+        await startMedia();
+      }
+
+      // Create new peer connection
       if (peerConnection.current) {
         peerConnection.current.close();
       }
       peerConnection.current = createPeer();
       setIceStatus("Setting up connection...");
 
+      // Small delay to ensure peer connection is fully initialized
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
       try {
+        // Explicitly check that tracks are added
+        if (localStreamRef.current) {
+          const trackCount = localStreamRef.current.getTracks().length;
+          console.log(`Adding ${trackCount} tracks to peer connection`);
+        }
+
         const offer = await peerConnection.current.createOffer();
         await peerConnection.current.setLocalDescription(offer);
 
@@ -277,26 +298,60 @@ function App() {
 
       if (remoteVideo.current && event.streams && event.streams[0]) {
         console.log("Setting remote stream");
-        remoteVideo.current.srcObject = event.streams[0];
 
-        setTimeout(() => {
-          if (remoteVideo.current) {
+        // Store the remote stream for reconnection purposes
+        if (event.track.kind === "video") {
+          console.log("Remote video track received");
+
+          // Set srcObject and immediately attempt to play
+          remoteVideo.current.srcObject = event.streams[0];
+
+          // Try playing immediately and also with a backup timeout
+          remoteVideo.current
+            .play()
+            .then(() => console.log("Remote video playing immediately"))
+            .catch((err) => {
+              console.log("Will retry playing in timeout", err);
+              // Continue with the timeout approach as fallback
+            });
+
+          // Backup timeout for browsers with autoplay restrictions
+          setTimeout(() => {
+            if (remoteVideo.current && remoteVideo.current.paused) {
+              console.log(
+                "Attempting to play remote video again after timeout"
+              );
+              remoteVideo.current
+                .play()
+                .then(() => console.log("Remote video playing after timeout"))
+                .catch((err) => {
+                  console.error(
+                    "Error playing remote video after timeout:",
+                    err
+                  );
+                  setIceStatus("Error playing remote video: " + err.message);
+                });
+            }
+          }, 1000);
+        }
+
+        // Monitor track status for debugging
+        event.track.onunmute = () => {
+          console.log("Track unmuted:", event.track.kind);
+          // Try to play again when unmuted
+          if (
+            event.track.kind === "video" &&
+            remoteVideo.current &&
+            remoteVideo.current.paused
+          ) {
             remoteVideo.current
               .play()
-              .then(() => console.log("Remote video playing"))
-              .catch((err) => {
-                console.error("Error playing remote video:", err);
-                setIceStatus("Error playing remote video: " + err.message);
-              });
+              .then(() => console.log("Video playing after unmute"))
+              .catch((err) =>
+                console.error("Failed to play after unmute:", err)
+              );
           }
-        }, 1000);
-
-        event.track.onunmute = () =>
-          console.log("Track unmuted:", event.track.kind);
-        event.track.onmute = () =>
-          console.log("Track muted:", event.track.kind);
-        event.track.onended = () =>
-          console.log("Track ended:", event.track.kind);
+        };
       } else {
         console.warn("Remote video element or stream not available", {
           videoElement: !!remoteVideo.current,
@@ -376,19 +431,39 @@ function App() {
 
   async function startMedia() {
     try {
+      // Check if we already have media
+      if (localStreamRef.current) {
+        console.log("Using existing local stream");
+        return localStreamRef.current;
+      }
+
+      console.log("Requesting access to local media");
       const stream = await navigator.mediaDevices.getUserMedia({
         video: true,
         audio: true,
       });
 
+      console.log(
+        "Local media obtained",
+        stream.getTracks().map((t) => t.kind)
+      );
       localStreamRef.current = stream;
 
       if (localVideo.current) {
         localVideo.current.srcObject = stream;
+        try {
+          await localVideo.current.play();
+          console.log("Local video playing");
+        } catch (err) {
+          console.warn("Could not autoplay local video:", err);
+        }
       }
+
+      return stream;
     } catch (error) {
       console.error("Error accessing media devices:", error);
       alert("Failed to access camera or microphone. Please check permissions.");
+      return null;
     }
   }
 
