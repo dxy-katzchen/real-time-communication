@@ -39,10 +39,10 @@ graph TB
         end
 
         subgraph "API Endpoints"
-            R1[/api/users]
-            R2[/api/meetings]
-            R3[/api/meetings/:id/join]
-            R4[/api/meetings/:id/end]
+            R1["/api/users"]
+            R2["/api/meetings"]
+            R3["/api/meetings/:id/join"]
+            R4["/api/meetings/:id/end"]
         end
     end
 
@@ -135,3 +135,42 @@ sequenceDiagram
     A-.->B: Direct Media Stream (RTP/SRTP)
     B-.->A: Direct Media Stream (RTP/SRTP)
 ```
+
+## Key Components Explained
+
+### 1. Authentication & User Management
+
+- Users authenticate through the Auth component
+- User data is stored in MongoDB via REST API
+- Each user gets a unique userId for session management
+
+### 2. Meeting Management
+
+- **Host**: Creates meeting → Gets meetingId → Joins room
+- **Participants**: Join meeting with meetingId → Verify access → Join room
+- Meeting state is managed through REST API and Socket.IO
+
+### 3. WebRTC Connection Process
+
+1. **Signaling**: Socket.IO handles offer/answer/ICE candidate exchange
+2. **Peer Connections**: Direct RTCPeerConnection between browsers
+3. **Media Streams**: Video/audio flows directly P2P (bypasses server)
+
+### 4. Real-time Communication Flow
+
+```
+User Action → Socket.IO Event → Server Relay → Other Users → UI Update
+```
+
+### 5. Data Flow Architecture
+
+- **Control Data**: REST API ↔ MongoDB (persistent)
+- **Real-time Events**: Socket.IO (ephemeral)
+- **Media Streams**: Direct P2P WebRTC (real-time)
+
+## Technologies Used
+
+- **Frontend**: React, TypeScript, WebRTC API
+- **Backend**: Flask, Socket.IO, MongoDB
+- **Real-time**: Socket.IO for signaling, WebRTC for media
+- **Infrastructure**: STUN/TURN servers for NAT traversal
