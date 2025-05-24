@@ -1,11 +1,12 @@
 import React, { useState } from "react";
+import { meetingAPI } from "../Service/api";
 
 interface MeetingLobbyProps {
   userId: string;
   username: string;
   onJoinMeeting: (meetingId: string) => void;
   onCreateMeeting: (meetingId: string) => void;
-  onLogout?: () => void; // Add this optional prop
+  onLogout?: () => void;
 }
 
 const MeetingLobby: React.FC<MeetingLobbyProps> = ({
@@ -25,26 +26,15 @@ const MeetingLobby: React.FC<MeetingLobbyProps> = ({
     setError("");
 
     try {
-      const response = await fetch("http://localhost:5002/api/meetings", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          hostId: userId,
-          name: meetingName || `${username}'s Meeting`,
-        }),
+      const data = await meetingAPI.createMeeting({
+        hostId: userId,
+        name: meetingName || `${username}'s Meeting`,
       });
-
-      if (response.ok) {
-        const data = await response.json();
-        onCreateMeeting(data.meetingId);
-      } else {
-        const errorData = await response.json();
-        setError(errorData.error || "Failed to create meeting");
-      }
+      onCreateMeeting(data.meetingId);
     } catch (err) {
-      setError("Network error. Please try again.");
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to create meeting";
+      setError(errorMessage);
       console.error("Create meeting error:", err);
     } finally {
       setLoading(false);
@@ -61,27 +51,12 @@ const MeetingLobby: React.FC<MeetingLobbyProps> = ({
     setError("");
 
     try {
-      const response = await fetch(
-        `http://localhost:5002/api/meetings/${meetingId}/join`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            userId: userId,
-          }),
-        }
-      );
-
-      if (response.ok) {
-        onJoinMeeting(meetingId);
-      } else {
-        const errorData = await response.json();
-        setError(errorData.error || "Failed to join meeting");
-      }
+      await meetingAPI.joinMeeting(meetingId, userId);
+      onJoinMeeting(meetingId);
     } catch (err) {
-      setError("Network error. Please try again.");
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to join meeting";
+      setError(errorMessage);
       console.error("Join meeting error:", err);
     } finally {
       setLoading(false);

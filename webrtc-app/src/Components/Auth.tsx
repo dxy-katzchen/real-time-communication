@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { userAPI } from "../Service/api";
 
 interface AuthProps {
   onUserCreated: (userId: string, username: string) => void;
@@ -21,34 +22,18 @@ const Auth: React.FC<AuthProps> = ({ onUserCreated }) => {
 
     try {
       // First check if user exists
-      const checkResponse = await fetch(
-        `http://localhost:5002/api/users/${username}`
-      );
-
-      if (checkResponse.ok) {
-        // User exists, get their info
-        const userData = await checkResponse.json();
+      try {
+        const userData = await userAPI.getUser(username);
         onUserCreated(userData._id, userData.username);
-      } else {
-        // Create new user
-        const createResponse = await fetch("http://localhost:5002/api/users", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ username }),
-        });
-
-        if (createResponse.ok) {
-          const userData = await createResponse.json();
-          onUserCreated(userData.userId, userData.username);
-        } else {
-          const errorData = await createResponse.json();
-          setError(errorData.error || "Failed to create user");
-        }
+      } catch (getUserError) {
+        // If user doesn't exist, create new user
+        const userData = await userAPI.createUser({ username });
+        onUserCreated(userData.userId, userData.username);
       }
     } catch (err) {
-      setError("Network error. Please try again.");
+      const errorMessage =
+        err instanceof Error ? err.message : "Network error. Please try again.";
+      setError(errorMessage);
       console.error("Auth error:", err);
     } finally {
       setLoading(false);

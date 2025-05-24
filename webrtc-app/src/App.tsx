@@ -4,6 +4,7 @@ import Auth from "./Components/Auth";
 import MeetingLobby from "./Components/MeetingLobby";
 import { ParticipantThumbnail } from "./Components/ParticipantThumbnail";
 import { MainVideoComponent } from "./Components/MainVideoComponent";
+import { meetingAPI, getSocketURL } from "./Service/api";
 
 interface Participant {
   userId: string;
@@ -65,15 +66,10 @@ function App() {
     setRoom(meetingIdToJoin);
     setInRoom(true);
 
-    // Check if user is host
+    // Check if user is host using API service
     try {
-      const response = await fetch(
-        `http://localhost:5002/api/meetings/${meetingIdToJoin}/is-host/${userId}`
-      );
-      if (response.ok) {
-        const data = await response.json();
-        setIsHost(data.isHost);
-      }
+      const data = await meetingAPI.isHost(meetingIdToJoin, userId!);
+      setIsHost(data.isHost);
     } catch (err) {
       console.error("Error checking host status:", err);
     }
@@ -365,14 +361,10 @@ function App() {
       }
     }
 
-    // Regular participant leave
+    // Regular participant leave using API service
     if (userId && meetingId) {
       try {
-        await fetch(`http://localhost:5002/api/meetings/${meetingId}/leave`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId }),
-        });
+        await meetingAPI.leaveMeeting(meetingId, userId);
       } catch (err) {
         console.error("Error leaving meeting:", err);
       }
@@ -406,7 +398,7 @@ function App() {
     setIsMuted(false);
     setIsVideoOff(false);
 
-    socketRef.current.emit("leave", { room: meetingId, userId });
+    socketRef.current?.emit("leave", { room: meetingId, userId });
 
     setInRoom(false);
     setMeetingId(null);
@@ -423,23 +415,10 @@ function App() {
     setIsEndingMeeting(true);
 
     try {
-      const response = await fetch(
-        `http://localhost:5002/api/meetings/${meetingId}/end`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId }),
-        }
-      );
+      // Use API service
+      await meetingAPI.endMeeting(meetingId, userId);
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        alert(`Failed to end meeting: ${errorData.error}`);
-        setIsEndingMeeting(false);
-        return;
-      }
-
-      socketRef.current.emit("end-meeting", { room: meetingId, userId });
+      socketRef.current?.emit("end-meeting", { room: meetingId, userId });
       alert("Meeting ended successfully");
 
       // Clean up and leave
@@ -479,14 +458,18 @@ function App() {
       console.log("Successfully ended meeting and stopped all media");
     } catch (err) {
       console.error("Error ending meeting:", err);
-      alert("Network error when ending meeting.");
+      if (err instanceof Error) {
+        alert(`Failed to end meeting: ${err.message}`);
+      } else {
+        alert("Network error when ending meeting.");
+      }
       setIsEndingMeeting(false);
     }
   };
 
-  // Socket setup
+  // Socket setup using API service for URL
   useEffect(() => {
-    const newSocket = io("http://localhost:5002", {
+    const newSocket = io(getSocketURL(), {
       transports: ["websocket", "polling"],
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
@@ -594,18 +577,13 @@ function App() {
     }
   }, [inRoom, meetingId, userId]);
 
-  // Fetch participants periodically
+  // Fetch participants periodically using API service
   useEffect(() => {
     if (meetingId) {
       const fetchParticipants = async () => {
         try {
-          const response = await fetch(
-            `http://localhost:5002/api/meetings/${meetingId}/participants`
-          );
-          if (response.ok) {
-            const data = await response.json();
-            setParticipants(data);
-          }
+          const data = await meetingAPI.getParticipants(meetingId);
+          setParticipants(data);
         } catch (err) {
           console.error("Error fetching participants:", err);
         }
@@ -617,7 +595,7 @@ function App() {
     }
   }, [meetingId, inRoom]);
 
-  // Enhanced toggle video function
+  // Enhanced toggle video function with audio state fix
   const toggleVideo = async () => {
     if (!localStreamRef.current) return;
 
@@ -626,7 +604,7 @@ function App() {
       try {
         const newStream = await navigator.mediaDevices.getUserMedia({
           video: true,
-          audio: !isMuted,
+          audio: true, // Always get audio, we'll control it with enabled property
         });
 
         // Stop old tracks first
@@ -636,6 +614,12 @@ function App() {
 
         // Update local stream reference
         localStreamRef.current = newStream;
+
+        // Apply current audio mute state to new audio tracks
+        const audioTracks = newStream.getAudioTracks();
+        audioTracks.forEach((track) => {
+          track.enabled = !isMuted; // Apply current mute state
+        });
 
         // Update local video element
         if (localVideo.current) {
@@ -712,18 +696,23 @@ function App() {
     }
   };
 
-  // Enhanced toggle audio function
+  // Fixed toggle audio function
   const toggleAudio = () => {
     if (localStreamRef.current) {
       const audioTracks = localStreamRef.current.getAudioTracks();
+      const newMutedState = !isMuted; // Use the React state as the source of truth
+
       audioTracks.forEach((track) => {
-        track.enabled = !track.enabled;
+        track.enabled = !newMutedState; // Set track.enabled to opposite of muted state
       });
-      setIsMuted(!isMuted);
+
+      setIsMuted(newMutedState);
+
+      console.log(`Audio ${newMutedState ? "muted" : "unmuted"}`);
     }
   };
 
-  // Enhanced startMedia function with better error handling
+  // Enhanced startMedia function with initial audio state
   async function startMedia() {
     try {
       if (localStreamRef.current) {
@@ -749,6 +738,13 @@ function App() {
         "Local media obtained:",
         stream.getTracks().map((t) => t.kind)
       );
+
+      // Apply initial mute state to audio tracks
+      const audioTracks = stream.getAudioTracks();
+      audioTracks.forEach((track) => {
+        track.enabled = !isMuted; // Apply current mute state
+      });
+
       localStreamRef.current = stream;
 
       if (localVideo.current) {
