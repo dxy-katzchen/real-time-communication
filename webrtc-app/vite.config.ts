@@ -7,12 +7,24 @@ export default defineConfig({
   server: {
     cors: true,
     proxy: {
+      // Proxy API requests
+      "/api": {
+        target: "https://liger-kind-tapir.ngrok-free.app",
+        changeOrigin: true,
+        secure: true,
+        headers: {
+          "ngrok-skip-browser-warning": "true",
+        },
+      },
+      // Proxy Socket.IO requests
       "/socket.io": {
-        target: "http://localhost:5002",
+        target: "https://liger-kind-tapir.ngrok-free.app",
         ws: true,
         changeOrigin: true,
-        secure: false,
-        rewrite: (path) => path,
+        secure: true,
+        headers: {
+          "ngrok-skip-browser-warning": "true",
+        },
       },
     },
   },

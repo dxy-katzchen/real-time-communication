@@ -88,15 +88,55 @@ function App() {
 
     const pc = new RTCPeerConnection({
       iceServers: [
+        // Google STUN servers
+        { urls: "stun:stun.l.google.com:19302" },
+        { urls: "stun:stun1.l.google.com:19302" },
+        { urls: "stun:stun2.l.google.com:19302" },
+        { urls: "stun:stun3.l.google.com:19302" },
+        { urls: "stun:stun4.l.google.com:19302" },
+
+        // Additional public STUN servers
         { urls: "stun:stun.relay.metered.ca:80" },
+        { urls: "stun:global.stun.twilio.com:3478" },
+
+        // Metered TURN servers (multiple protocols and ports)
+        {
+          urls: "turn:global.relay.metered.ca:80",
+          username: "92c0c0f3362e3c6f2f20a86d",
+          credential: "aK0V47jdAT0iaI4a",
+        },
+        {
+          urls: "turn:global.relay.metered.ca:80?transport=tcp",
+          username: "92c0c0f3362e3c6f2f20a86d",
+          credential: "aK0V47jdAT0iaI4a",
+        },
         {
           urls: "turn:global.relay.metered.ca:443",
           username: "92c0c0f3362e3c6f2f20a86d",
           credential: "aK0V47jdAT0iaI4a",
         },
+        {
+          urls: "turns:global.relay.metered.ca:443?transport=tcp",
+          username: "92c0c0f3362e3c6f2f20a86d",
+          credential: "aK0V47jdAT0iaI4a",
+        },
+
+        // Additional TURN servers for better connectivity
+        {
+          urls: "turn:relay1.expressturn.com:3478",
+          username: "ef4BIXR2JUZ0JJ2HFPZ",
+          credential: "K5BdZjHHmKITB7xP",
+        },
       ],
       iceCandidatePoolSize: 10,
+      bundlePolicy: "max-bundle",
+      rtcpMuxPolicy: "require",
+      iceTransportPolicy: "all", // Allow both STUN and TURN
     });
+
+    // Track connection attempt and retry count
+    let connectionAttempts = 0;
+    const maxAttempts = 3;
 
     // Add local stream tracks - ensure they exist first
     if (localStreamRef.current) {
@@ -115,9 +155,14 @@ function App() {
       );
     }
 
-    // Handle ICE candidates
+    // Handle ICE candidates with better error handling
     pc.onicecandidate = (event) => {
       if (event.candidate) {
+        console.log(`Sending ICE candidate to ${participantSocketId}:`, {
+          type: event.candidate.type,
+          protocol: event.candidate.protocol,
+          address: event.candidate.address,
+        });
         if (socketRef.current) {
           socketRef.current.emit("ice-candidate", {
             candidate: event.candidate,
@@ -125,46 +170,229 @@ function App() {
             fromUserId: userId,
           });
         }
+      } else {
+        console.log(`ICE gathering complete for ${participantSocketId}`);
       }
     };
 
-    // Handle remote stream
+    // Handle remote stream with enhanced error handling
     pc.ontrack = (event) => {
       console.log(
         `Received track from ${participantSocketId}:`,
-        event.track.kind
+        event.track.kind,
+        event.track.readyState
       );
 
       if (event.streams && event.streams[0]) {
+        const stream = event.streams[0];
+
+        // Add stream event listeners
+        stream.getTracks().forEach((track) => {
+          track.onended = () => {
+            console.log(`Track ended for ${participantSocketId}:`, track.kind);
+          };
+
+          track.onmute = () => {
+            console.log(`Track muted for ${participantSocketId}:`, track.kind);
+          };
+
+          track.onunmute = () => {
+            console.log(
+              `Track unmuted for ${participantSocketId}:`,
+              track.kind
+            );
+          };
+        });
+
         setRemoteParticipants((prev) => {
           const updated = new Map(prev);
           const participant = updated.get(participantSocketId);
           if (participant) {
-            participant.stream = event.streams[0];
+            participant.stream = stream;
             updated.set(participantSocketId, participant);
-            console.log(`Updated stream for ${participantSocketId}`);
+            console.log(`Updated stream for ${participantSocketId}`, {
+              videoTracks: stream.getVideoTracks().length,
+              audioTracks: stream.getAudioTracks().length,
+            });
           }
           return updated;
         });
       }
     };
 
-    // Handle connection state changes
+    // Enhanced ICE connection state handling with retry logic
     pc.oniceconnectionstatechange = () => {
       console.log(
         `ICE connection state with ${participantSocketId}:`,
         pc.iceConnectionState
       );
 
-      if (pc.iceConnectionState === "failed") {
-        console.log(
-          `Connection failed with ${participantSocketId}, attempting restart`
-        );
+      switch (pc.iceConnectionState) {
+        case "failed":
+          console.log(
+            `Connection failed with ${participantSocketId}, attempt ${
+              connectionAttempts + 1
+            }/${maxAttempts}`
+          );
+
+          if (connectionAttempts < maxAttempts) {
+            connectionAttempts++;
+            setTimeout(async () => {
+              try {
+                console.log(
+                  `Attempting ICE restart for ${participantSocketId} (attempt ${connectionAttempts})`
+                );
+                await pc.restartIce();
+
+                // If we're the initiator, create a new offer with ice restart
+                if (isInitiator) {
+                  const offer = await pc.createOffer({ iceRestart: true });
+                  await pc.setLocalDescription(offer);
+
+                  socketRef.current?.emit("offer", {
+                    offer,
+                    targetSocket: participantSocketId,
+                    fromUserId: userId,
+                    msgId: Date.now().toString(),
+                    isRestart: true,
+                  });
+                }
+              } catch (restartError) {
+                console.error(
+                  `ICE restart failed for ${participantSocketId}:`,
+                  restartError
+                );
+
+                // If all attempts failed, try recreating the connection
+                if (connectionAttempts >= maxAttempts) {
+                  console.log(
+                    `Max attempts reached, recreating connection for ${participantSocketId}`
+                  );
+                  setTimeout(() => {
+                    recreateConnection(participantSocketId);
+                  }, 2000);
+                }
+              }
+            }, Math.pow(2, connectionAttempts) * 1000); // Exponential backoff
+          } else {
+            console.log(
+              `Max connection attempts reached for ${participantSocketId}, recreating connection`
+            );
+            setTimeout(() => {
+              recreateConnection(participantSocketId);
+            }, 5000);
+          }
+          break;
+
+        case "connected":
+        case "completed":
+          console.log(`Successfully connected to ${participantSocketId}`);
+          connectionAttempts = 0; // Reset attempts on successful connection
+          break;
+
+        case "disconnected":
+          console.log(
+            `Disconnected from ${participantSocketId}, waiting for reconnection...`
+          );
+          break;
       }
+    };
+
+    // Add connection state change handler
+    pc.onconnectionstatechange = () => {
+      console.log(
+        `Connection state with ${participantSocketId}:`,
+        pc.connectionState
+      );
+
+      if (pc.connectionState === "failed") {
+        console.log(`Overall connection failed with ${participantSocketId}`);
+        if (connectionAttempts < maxAttempts) {
+          setTimeout(() => {
+            recreateConnection(participantSocketId);
+          }, 3000);
+        }
+      }
+    };
+
+    // Add ICE gathering state handler
+    pc.onicegatheringstatechange = () => {
+      console.log(
+        `ICE gathering state with ${participantSocketId}:`,
+        pc.iceGatheringState
+      );
+    };
+
+    // Add signaling state change handler
+    pc.onsignalingstatechange = () => {
+      console.log(
+        `Signaling state with ${participantSocketId}:`,
+        pc.signalingState
+      );
     };
 
     peerConnections.current.set(participantSocketId, pc);
     return pc;
+  };
+
+  // Function to recreate a failed connection
+  const recreateConnection = async (participantSocketId: string) => {
+    console.log(`Recreating connection for ${participantSocketId}`);
+
+    // Close and remove old connection
+    const oldPc = peerConnections.current.get(participantSocketId);
+    if (oldPc) {
+      oldPc.close();
+      peerConnections.current.delete(participantSocketId);
+    }
+
+    // Get participant info
+    const participant = remoteParticipants.get(participantSocketId);
+    if (!participant) {
+      console.log(`No participant found for ${participantSocketId}`);
+      return;
+    }
+
+    // Wait a bit before recreating
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    // Create new connection
+    const pc = createPeerConnection(participantSocketId, true);
+
+    // Update participant with new connection
+    setRemoteParticipants((prev) => {
+      const updated = new Map(prev);
+      const existingParticipant = updated.get(participantSocketId);
+      if (existingParticipant) {
+        existingParticipant.peerConnection = pc;
+        existingParticipant.stream = undefined; // Reset stream
+        updated.set(participantSocketId, existingParticipant);
+      }
+      return updated;
+    });
+
+    // Wait a bit then create offer
+    setTimeout(async () => {
+      try {
+        const offer = await pc.createOffer({
+          offerToReceiveAudio: true,
+          offerToReceiveVideo: true,
+        });
+        await pc.setLocalDescription(offer);
+
+        socketRef.current?.emit("offer", {
+          offer,
+          targetSocket: participantSocketId,
+          fromUserId: userId,
+          msgId: Date.now().toString(),
+          isRecreate: true,
+        });
+
+        console.log("Recreate offer sent to:", participantSocketId);
+      } catch (error) {
+        console.error("Error creating recreate offer:", error);
+      }
+    }, 2000);
   };
 
   // Handle when a new user joins
@@ -854,6 +1082,72 @@ function App() {
 
     console.log("User logged out and all media stopped");
   };
+
+  // Network diagnostics function
+  const runNetworkDiagnostics = async () => {
+    console.log("Running network diagnostics...");
+
+    try {
+      // Test STUN server connectivity
+      const stunTest = new RTCPeerConnection({
+        iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+      });
+
+      stunTest.createDataChannel("test");
+      const offer = await stunTest.createOffer();
+      await stunTest.setLocalDescription(offer);
+
+      return new Promise((resolve) => {
+        let stunWorking = false;
+        let turnWorking = false;
+
+        stunTest.onicecandidate = (event) => {
+          if (event.candidate) {
+            console.log("ICE candidate found:", {
+              type: event.candidate.type,
+              protocol: event.candidate.protocol,
+              address: event.candidate.address,
+            });
+
+            if (event.candidate.type === "srflx") {
+              stunWorking = true;
+            } else if (event.candidate.type === "relay") {
+              turnWorking = true;
+            }
+          } else {
+            console.log("ICE gathering complete");
+            console.log("Network diagnostics results:", {
+              stunWorking,
+              turnWorking,
+              recommendation: stunWorking
+                ? turnWorking
+                  ? "Network should work well"
+                  : "Network should work for most cases"
+                : "Network may have issues, check firewall settings",
+            });
+            stunTest.close();
+            resolve({ stunWorking, turnWorking });
+          }
+        };
+
+        // Timeout after 10 seconds
+        setTimeout(() => {
+          console.log("Network diagnostics timeout");
+          stunTest.close();
+          resolve({ stunWorking, turnWorking });
+        }, 10000);
+      });
+    } catch (error) {
+      console.error("Network diagnostics failed:", error);
+      return { stunWorking: false, turnWorking: false };
+    }
+  };
+
+  // Call this when the app starts
+  useEffect(() => {
+    // Run diagnostics when app loads
+    runNetworkDiagnostics();
+  }, []);
 
   // If not authenticated, show login
   if (!userId || !username) {
