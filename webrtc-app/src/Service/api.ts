@@ -1,10 +1,24 @@
-const BASE_URL = "https://liger-kind-tapir.ngrok-free.app";
+// Environment-aware BASE_URL configuration
+const getBaseURL = () => {
+  // Check if we're in development mode
+  if (import.meta.env.DEV) {
+    return "http://localhost:5002";
+  }
+
+  // In production, use environment variable or default to relative URLs
+  return import.meta.env.VITE_API_BASE_URL || "";
+};
+
+const BASE_URL = getBaseURL();
 
 // Common headers for all requests
 const getHeaders = (includeContentType = true) => {
-  const headers: Record<string, string> = {
-    "ngrok-skip-browser-warning": "true",
-  };
+  const headers: Record<string, string> = {};
+
+  // Only add ngrok header in development when using ngrok
+  if (import.meta.env.DEV && BASE_URL.includes("ngrok")) {
+    headers["ngrok-skip-browser-warning"] = "true";
+  }
 
   if (includeContentType) {
     headers["Content-Type"] = "application/json";
@@ -103,7 +117,15 @@ export const meetingAPI = {
 };
 
 // Export the base URL for socket connections
-export const getSocketURL = () => BASE_URL;
+export const getSocketURL = () => {
+  // For Socket.IO, use the same logic as API
+  if (import.meta.env.DEV) {
+    return "http://localhost:5002";
+  }
+
+  // In production, use environment variable or current origin
+  return import.meta.env.VITE_SOCKET_URL || window.location.origin;
+};
 
 // Export types for better TypeScript support
 export interface User {
