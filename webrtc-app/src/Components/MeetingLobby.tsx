@@ -5,6 +5,7 @@ interface MeetingLobbyProps {
   username: string;
   onJoinMeeting: (meetingId: string) => void;
   onCreateMeeting: (meetingId: string) => void;
+  onLogout?: () => void; // Add this optional prop
 }
 
 const MeetingLobby: React.FC<MeetingLobbyProps> = ({
@@ -12,6 +13,7 @@ const MeetingLobby: React.FC<MeetingLobbyProps> = ({
   username,
   onJoinMeeting,
   onCreateMeeting,
+  onLogout,
 }) => {
   const [meetingId, setMeetingId] = useState("");
   const [meetingName, setMeetingName] = useState("");
@@ -97,9 +99,33 @@ const MeetingLobby: React.FC<MeetingLobbyProps> = ({
         color: "white",
       }}
     >
-      <h2 style={{ textAlign: "center", marginBottom: "10px" }}>
-        Welcome, {username}
-      </h2>
+      {/* Add logout button */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "20px",
+        }}
+      >
+        <h2 style={{ margin: 0 }}>Welcome, {username}</h2>
+        {onLogout && (
+          <button
+            onClick={onLogout}
+            style={{
+              padding: "5px 10px",
+              backgroundColor: "#6c757d",
+              color: "white",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
+              fontSize: "12px",
+            }}
+          >
+            Logout
+          </button>
+        )}
+      </div>
 
       {error && (
         <div

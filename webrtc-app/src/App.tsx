@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from "react";
-import io from "socket.io-client";
+import io, { Socket } from "socket.io-client";
 import Auth from "./Components/Auth";
 import MeetingLobby from "./Components/MeetingLobby";
 import { ParticipantThumbnail } from "./Components/ParticipantThumbnail";
@@ -35,7 +35,7 @@ function App() {
   const [isVideoOff, setIsVideoOff] = useState(false);
 
   const localVideo = useRef<HTMLVideoElement | null>(null);
-  const socketRef = useRef<any>(null);
+  const socketRef = useRef<Socket | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const [isEndingMeeting, setIsEndingMeeting] = useState(false);
 
@@ -122,11 +122,13 @@ function App() {
     // Handle ICE candidates
     pc.onicecandidate = (event) => {
       if (event.candidate) {
-        socketRef.current.emit("ice-candidate", {
-          candidate: event.candidate,
-          targetSocket: participantSocketId,
-          fromUserId: userId,
-        });
+        if (socketRef.current) {
+          socketRef.current.emit("ice-candidate", {
+            candidate: event.candidate,
+            targetSocket: participantSocketId,
+            fromUserId: userId,
+          });
+        }
       }
     };
 
@@ -381,17 +383,38 @@ function App() {
     peerConnections.current.clear();
     setRemoteParticipants(new Map());
 
+    // ENHANCED: Properly stop all media tracks and clear video element
     if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach((track) => track.stop());
+      console.log("Stopping all media tracks...");
+      localStreamRef.current.getTracks().forEach((track) => {
+        console.log(`Stopping ${track.kind} track`);
+        track.stop();
+      });
       localStreamRef.current = null;
     }
+
+    // ENHANCED: Clear the local video element
+    if (localVideo.current) {
+      console.log("Clearing local video element...");
+      localVideo.current.srcObject = null;
+      localVideo.current.pause();
+      localVideo.current.removeAttribute("src");
+      localVideo.current.load(); // Reset the video element
+    }
+
+    // Reset video/audio states
+    setIsMuted(false);
+    setIsVideoOff(false);
 
     socketRef.current.emit("leave", { room: meetingId, userId });
 
     setInRoom(false);
     setMeetingId(null);
     setIsHost(false);
+    setMainParticipant(null); // Reset main participant view
     localStorage.removeItem("lastMeetingId");
+
+    console.log("Successfully left meeting and stopped all media");
   };
 
   const handleEndMeeting = async () => {
@@ -424,15 +447,36 @@ function App() {
       peerConnections.current.clear();
       setRemoteParticipants(new Map());
 
+      // ENHANCED: Properly stop all media tracks and clear video element
       if (localStreamRef.current) {
-        localStreamRef.current.getTracks().forEach((track) => track.stop());
+        console.log("Stopping all media tracks...");
+        localStreamRef.current.getTracks().forEach((track) => {
+          console.log(`Stopping ${track.kind} track`);
+          track.stop();
+        });
         localStreamRef.current = null;
       }
+
+      // ENHANCED: Clear the local video element
+      if (localVideo.current) {
+        console.log("Clearing local video element...");
+        localVideo.current.srcObject = null;
+        localVideo.current.pause();
+        localVideo.current.removeAttribute("src");
+        localVideo.current.load(); // Reset the video element
+      }
+
+      // Reset video/audio states
+      setIsMuted(false);
+      setIsVideoOff(false);
 
       setInRoom(false);
       setMeetingId(null);
       setIsHost(false);
+      setMainParticipant(null); // Reset main participant view
       localStorage.removeItem("lastMeetingId");
+
+      console.log("Successfully ended meeting and stopped all media");
     } catch (err) {
       console.error("Error ending meeting:", err);
       alert("Network error when ending meeting.");
@@ -523,9 +567,22 @@ function App() {
       startMedia();
     }
 
+    // ENHANCED: Cleanup function for component unmount or when leaving room
     return () => {
       if (localStreamRef.current) {
-        localStreamRef.current.getTracks().forEach((track) => track.stop());
+        console.log("Cleanup: Stopping all media tracks...");
+        localStreamRef.current.getTracks().forEach((track) => {
+          console.log(`Cleanup: Stopping ${track.kind} track`);
+          track.stop();
+        });
+        localStreamRef.current = null;
+      }
+
+      const videoEl = localVideo.current;
+      if (videoEl) {
+        console.log("Cleanup: Clearing local video element...");
+        videoEl.srcObject = null;
+        videoEl.pause();
       }
     };
   }, [inRoom]);
@@ -569,7 +626,7 @@ function App() {
       try {
         const newStream = await navigator.mediaDevices.getUserMedia({
           video: true,
-          audio: true,
+          audio: !isMuted,
         });
 
         // Stop old tracks first
@@ -765,6 +822,43 @@ function App() {
     setMainParticipant(participantId);
   };
 
+  // Handle logout
+  const handleLogout = () => {
+    // Clean up any active meeting first
+    if (inRoom) {
+      handleLeaveMeeting();
+    }
+
+    // Stop any remaining media tracks
+    if (localStreamRef.current) {
+      console.log("Logout: Stopping all media tracks...");
+      localStreamRef.current.getTracks().forEach((track) => {
+        console.log(`Logout: Stopping ${track.kind} track`);
+        track.stop();
+      });
+      localStreamRef.current = null;
+    }
+
+    // Clear video element
+    if (localVideo.current) {
+      console.log("Logout: Clearing local video element...");
+      localVideo.current.srcObject = null;
+      localVideo.current.pause();
+    }
+
+    // Reset all states
+    setUserId(null);
+    setUsername(null);
+    setMeetingId(null);
+    setInRoom(false);
+    setIsHost(false);
+    setMainParticipant(null);
+    setIsMuted(false);
+    setIsVideoOff(false);
+
+    console.log("User logged out and all media stopped");
+  };
+
   // If not authenticated, show login
   if (!userId || !username) {
     return <Auth onUserCreated={handleUserCreated} />;
@@ -778,6 +872,7 @@ function App() {
         username={username}
         onJoinMeeting={handleJoinMeeting}
         onCreateMeeting={handleCreateMeeting}
+        onLogout={handleLogout}
       />
     );
   }
