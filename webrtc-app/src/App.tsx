@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState } from "react";
 import io, { Socket } from "socket.io-client";
 import Auth from "./Components/Auth";
 import MeetingLobby from "./Components/MeetingLobby";
@@ -29,7 +29,7 @@ function App() {
 
   // Zoom-like UI state
   const [mainParticipant, setMainParticipant] = useState<string | null>(null);
-  const [room, setRoom] = useState("");
+
   const [inRoom, setInRoom] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState("Not connected");
   const [isMuted, setIsMuted] = useState(false);
@@ -54,7 +54,7 @@ function App() {
   // Handle meeting creation
   const handleCreateMeeting = (newMeetingId: string) => {
     setMeetingId(newMeetingId);
-    setRoom(newMeetingId);
+
     setInRoom(true);
     setIsHost(true);
     localStorage.setItem("lastMeetingId", newMeetingId);
@@ -63,7 +63,7 @@ function App() {
   // Handle joining a meeting
   const handleJoinMeeting = async (meetingIdToJoin: string) => {
     setMeetingId(meetingIdToJoin);
-    setRoom(meetingIdToJoin);
+
     setInRoom(true);
 
     // Check if user is host using API service
@@ -430,7 +430,7 @@ function App() {
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
 
-      socketRef.current.emit("offer", {
+      socketRef.current!.emit("offer", {
         offer,
         targetSocket: data.socketId,
         fromUserId: userId,
@@ -525,7 +525,7 @@ function App() {
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
 
-      socketRef.current.emit("answer", {
+      socketRef.current!.emit("answer", {
         answer,
         targetSocket: data.fromSocket,
         fromUserId: userId,
