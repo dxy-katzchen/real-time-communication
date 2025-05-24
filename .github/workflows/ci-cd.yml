@@ -85,30 +85,78 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd /home/ec2-user/real-time-communication
+
+            # Handle git conflicts by stashing local changes
+            echo "Stashing local changes..."
+            git stash push -m "Auto-stash before deployment $(date)"
+
+            # Pull latest changes
+            echo "Pulling latest changes..."
             git pull origin main
 
             # Backend setup
+            echo "Setting up backend..."
             cd Flask-Backend
             source venv/bin/activate
             python -m pip install --upgrade pip
             pip install Flask Flask-CORS Flask-SocketIO pymongo
 
             # Stop existing backend processes
+            echo "Stopping existing backend processes..."
             pkill -f "python.*server.py" || true
             pkill -f "gunicorn.*server" || true
 
+            # Wait a moment for processes to stop
+            sleep 2
+
             # Start backend with nohup
+            echo "Starting backend server..."
             nohup python server.py > ../backend.log 2>&1 &
 
+            # Verify backend is starting
+            sleep 3
+            if ps aux | grep -v grep | grep "python.*server.py" > /dev/null; then
+                echo "Backend server started successfully"
+            else
+                echo "Warning: Backend server may not have started properly"
+                echo "Last few lines of backend log:"
+                tail -10 ../backend.log || echo "Could not read backend log"
+            fi
+
             # Frontend setup
+            echo "Setting up frontend..."
             cd ../webrtc-app
-            npm ci
+
+            # Clean install to avoid cache issues
+            rm -rf node_modules package-lock.json
+            npm install
             npm run build
 
-            # Copy frontend build to nginx directory
-            sudo cp -r dist/* /var/www/html/
+            # Verify build exists
+            if [ -d "dist" ]; then
+                echo "Frontend build completed successfully"
+                # Copy frontend build to nginx directory
+                sudo mkdir -p /var/www/html
+                sudo cp -r dist/* /var/www/html/
+                echo "Frontend files copied to nginx directory"
+            else
+                echo "Error: Frontend build failed - dist directory not found"
+                exit 1
+            fi
 
             # Restart nginx
+            echo "Reloading nginx..."
             sudo systemctl reload nginx
 
+            # Check nginx status
+            if sudo systemctl is-active --quiet nginx; then
+                echo "Nginx is running"
+            else
+                echo "Warning: Nginx may not be running properly"
+                sudo systemctl status nginx
+            fi
+
             echo "Deployment completed successfully"
+            echo "Backend log location: /home/ec2-user/real-time-communication/backend.log"
+            echo "To check backend status: ps aux | grep python"
+            echo "To check nginx status: sudo systemctl status nginx"
