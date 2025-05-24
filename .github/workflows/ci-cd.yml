@@ -21,6 +21,7 @@ jobs:
         with:
           node-version: "18"
           cache: "npm"
+          cache-dependency-path: "./webrtc-app/package-lock.json"
 
       - name: Install frontend dependencies
         working-directory: ./webrtc-app
@@ -64,7 +65,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-frontend, build-backend]
     if: github.ref == 'refs/heads/main'
-    environment: webrtc # Add this line to use the webrtc environment
+    environment: webrtc
 
     steps:
       - name: Checkout code
