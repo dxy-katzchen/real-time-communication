@@ -83,12 +83,17 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
+          timeout: 300s
+          command_timeout: 300s
           script: |
+            set -e  # Exit on any error
+
+            echo "Starting deployment at $(date)"
             cd /home/ec2-user/real-time-communication
 
             # Handle git conflicts by stashing local changes
             echo "Stashing local changes..."
-            git stash push -m "Auto-stash before deployment $(date)"
+            git stash push -m "Auto-stash before deployment $(date)" || echo "No changes to stash"
 
             # Pull latest changes
             echo "Pulling latest changes..."
@@ -97,66 +102,114 @@ jobs:
             # Backend setup
             echo "Setting up backend..."
             cd Flask-Backend
+
+            # Activate virtual environment
+            if [ ! -d "venv" ]; then
+                echo "Creating virtual environment..."
+                python3 -m venv venv
+            fi
             source venv/bin/activate
-            python -m pip install --upgrade pip
-            pip install Flask Flask-CORS Flask-SocketIO pymongo
+
+            # Install dependencies
+            echo "Installing Python dependencies..."
+            python -m pip install --upgrade pip --quiet
+            pip install Flask Flask-CORS Flask-SocketIO pymongo --quiet
 
             # Stop existing backend processes
             echo "Stopping existing backend processes..."
-            pkill -f "python.*server.py" || true
-            pkill -f "gunicorn.*server" || true
+            pkill -f "python.*server.py" || echo "No existing server processes found"
+            pkill -f "gunicorn.*server" || echo "No existing gunicorn processes found"
 
-            # Wait a moment for processes to stop
-            sleep 2
+            # Wait for processes to stop
+            sleep 3
 
-            # Start backend with nohup
+            # Start backend
             echo "Starting backend server..."
             nohup python server.py > ../backend.log 2>&1 &
+            sleep 2
 
-            # Verify backend is starting
-            sleep 3
-            if ps aux | grep -v grep | grep "python.*server.py" > /dev/null; then
-                echo "Backend server started successfully"
+            # Verify backend started
+            if pgrep -f "python.*server.py" > /dev/null; then
+                echo "✓ Backend server started successfully"
             else
-                echo "Warning: Backend server may not have started properly"
-                echo "Last few lines of backend log:"
-                tail -10 ../backend.log || echo "Could not read backend log"
+                echo "✗ Backend server failed to start"
+                echo "Backend log:"
+                cat ../backend.log || echo "Could not read backend log"
+                exit 1
             fi
 
             # Frontend setup
             echo "Setting up frontend..."
             cd ../webrtc-app
 
-            # Clean install to avoid cache issues
-            rm -rf node_modules package-lock.json
-            npm install
+            # Check if Node.js is available
+            if ! command -v node &> /dev/null; then
+                echo "Installing Node.js..."
+                curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+                sudo apt-get install -y nodejs
+            fi
+
+            # Clean previous build
+            echo "Cleaning previous build..."
+            rm -rf node_modules package-lock.json dist
+
+            # Install dependencies and build
+            echo "Installing Node.js dependencies..."
+            npm install --silent
+
+            echo "Building frontend..."
             npm run build
 
-            # Verify build exists
-            if [ -d "dist" ]; then
-                echo "Frontend build completed successfully"
-                # Copy frontend build to nginx directory
-                sudo mkdir -p /var/www/html
-                sudo cp -r dist/* /var/www/html/
-                echo "Frontend files copied to nginx directory"
+            # Verify build
+            if [ -d "dist" ] && [ "$(ls -A dist)" ]; then
+                echo "✓ Frontend build completed successfully"
             else
-                echo "Error: Frontend build failed - dist directory not found"
+                echo "✗ Frontend build failed - dist directory is empty or missing"
                 exit 1
             fi
 
+            # Setup Nginx
+            echo "Setting up Nginx..."
+
+            # Create nginx directory if it doesn't exist
+            sudo mkdir -p /var/www/html
+
+            # Backup existing files
+            if [ -d "/var/www/html_backup" ]; then
+                sudo rm -rf /var/www/html_backup
+            fi
+            sudo cp -r /var/www/html /var/www/html_backup 2>/dev/null || echo "No previous files to backup"
+
+            # Copy new files
+            sudo cp -r dist/* /var/www/html/
+
+            # Set proper permissions
+            sudo chown -R nginx:nginx /var/www/html/ 2>/dev/null || sudo chown -R www-data:www-data /var/www/html/
+            sudo chmod -R 755 /var/www/html/
+
+            echo "✓ Frontend files copied to nginx directory"
+
             # Restart nginx
-            echo "Reloading nginx..."
+            echo "Restarting nginx..."
             sudo systemctl reload nginx
 
-            # Check nginx status
+            # Verify nginx is running
             if sudo systemctl is-active --quiet nginx; then
-                echo "Nginx is running"
+                echo "✓ Nginx is running"
             else
-                echo "Warning: Nginx may not be running properly"
+                echo "✗ Nginx failed to start"
                 sudo systemctl status nginx
+                exit 1
             fi
 
-            echo "Deployment completed successfully"
-            echo "Backend log location: /home/ec2-user/real-time-communication/backend.log"
-            echo "To check backend status: ps aux | grep python"
-            echo "To check nginx status: sudo systemctl status nginx"
+            echo "🎉 Deployment completed successfully at $(date)"
+            echo ""
+            echo "📊 Deployment Summary:"
+            echo "Backend: http://$(curl -s ifconfig.me):5002"
+            echo "Frontend: http://$(curl -s ifconfig.me)"
+            echo "Logs: /home/ec2-user/real-time-communication/backend.log"
+            echo ""
+            echo "🔍 Health Check Commands:"
+            echo "Backend status: pgrep -f 'python.*server.py'"
+            echo "Nginx status: sudo systemctl status nginx"
+            echo "View logs: tail -f /home/ec2-user/real-time-communication/backend.log"
