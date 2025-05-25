@@ -338,8 +338,9 @@ def on_media_status_update(data):
     user_id = data.get('userId')
     is_muted = data.get('isMuted', False)
     is_video_off = data.get('isVideoOff', False)
+    is_screen_sharing = data.get('isScreenSharing', False)
     
-    print(f"Media status update from {user_id}: muted={is_muted}, video_off={is_video_off}")
+    print(f"Media status update from {user_id}: muted={is_muted}, video_off={is_video_off}, screen_sharing={is_screen_sharing}")
     
     if room:
         # Broadcast the media status to all other participants in the room
@@ -347,7 +348,8 @@ def on_media_status_update(data):
             'userId': user_id,
             'socketId': request.sid,
             'isMuted': is_muted,
-            'isVideoOff': is_video_off
+            'isVideoOff': is_video_off,
+            'isScreenSharing': is_screen_sharing
         }, to=room, include_self=False)
 
 @socketio.on('send-chat-message')

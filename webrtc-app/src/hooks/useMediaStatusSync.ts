@@ -18,26 +18,36 @@ export const useMediaStatusSync = ({
   setRemoteParticipants,
 }: UseMediaStatusSyncProps) => {
   // Track the last emitted status to avoid unnecessary broadcasts
-  const lastEmittedStatus = useRef<{ isMuted: boolean; isVideoOff: boolean }>({
+  const lastEmittedStatus = useRef<{
+    isMuted: boolean;
+    isVideoOff: boolean;
+    isScreenSharing: boolean;
+  }>({
     isMuted: false,
     isVideoOff: false,
+    isScreenSharing: false,
   });
 
   // Emit media status update to other participants
   const broadcastMediaStatus = useCallback(
-    (isMuted: boolean, isVideoOff: boolean) => {
+    (
+      isMuted: boolean,
+      isVideoOff: boolean,
+      isScreenSharing: boolean = false
+    ) => {
       if (
         !socketRef.current ||
         !meetingId ||
         !userId ||
         (lastEmittedStatus.current.isMuted === isMuted &&
-          lastEmittedStatus.current.isVideoOff === isVideoOff)
+          lastEmittedStatus.current.isVideoOff === isVideoOff &&
+          lastEmittedStatus.current.isScreenSharing === isScreenSharing)
       ) {
         return;
       }
 
       console.log(
-        `Broadcasting media status: muted=${isMuted}, video_off=${isVideoOff}`
+        `Broadcasting media status: muted=${isMuted}, video_off=${isVideoOff}, screen_sharing=${isScreenSharing}`
       );
 
       socketRef.current.emit("media-status-update", {
@@ -45,10 +55,11 @@ export const useMediaStatusSync = ({
         userId: userId,
         isMuted: isMuted,
         isVideoOff: isVideoOff,
+        isScreenSharing: isScreenSharing,
       });
 
       // Update last emitted status
-      lastEmittedStatus.current = { isMuted, isVideoOff };
+      lastEmittedStatus.current = { isMuted, isVideoOff, isScreenSharing };
     },
     [socketRef, meetingId, userId]
   );
@@ -60,9 +71,14 @@ export const useMediaStatusSync = ({
       socketId: string;
       isMuted: boolean;
       isVideoOff: boolean;
+      isScreenSharing?: boolean;
     }) => {
       console.log(
-        `Received media status update from ${data.userId}: muted=${data.isMuted}, video_off=${data.isVideoOff}`
+        `Received media status update from ${data.userId}: muted=${
+          data.isMuted
+        }, video_off=${data.isVideoOff}, screen_sharing=${
+          data.isScreenSharing || false
+        }`
       );
 
       setRemoteParticipants((prev) => {
@@ -72,6 +88,7 @@ export const useMediaStatusSync = ({
         if (participant) {
           participant.isMuted = data.isMuted;
           participant.isVideoOff = data.isVideoOff;
+          participant.isScreenSharing = data.isScreenSharing || false;
           updated.set(data.socketId, participant);
           console.log(`Updated media status for participant ${data.userId}`);
         } else {

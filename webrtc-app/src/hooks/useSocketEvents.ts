@@ -33,6 +33,7 @@ interface UseSocketEventsProps {
     socketId: string;
     isMuted: boolean;
     isVideoOff: boolean;
+    isScreenSharing?: boolean;
   }) => void;
   onChatMessage?: (data: {
     id: string;

@@ -38,6 +38,8 @@ function App() {
     setIsMuted,
     isVideoOff,
     setIsVideoOff,
+    isScreenSharing,
+    setIsScreenSharing,
     localVideo,
     localStreamRef,
     isEndingMeeting,
@@ -74,17 +76,25 @@ function App() {
   );
 
   // Media controls
-  const { startMedia, toggleAudio, toggleVideo, copyMeetingId } =
-    useMediaControls({
-      localStreamRef,
-      localVideo,
-      isMuted,
-      setIsMuted,
-      isVideoOff,
-      setIsVideoOff,
-      setIsCopied,
-      broadcastMediaStatus,
-    });
+  const {
+    startMedia,
+    toggleAudio,
+    toggleVideo,
+    toggleScreenShare,
+    copyMeetingId,
+  } = useMediaControls({
+    localStreamRef,
+    localVideo,
+    isMuted,
+    setIsMuted,
+    isVideoOff,
+    setIsVideoOff,
+    setIsCopied,
+    isScreenSharing,
+    setIsScreenSharing,
+    peerConnections: webRTCHandlers.peerConnections,
+    broadcastMediaStatus,
+  });
 
   // Meeting operations
   const {
@@ -304,6 +314,9 @@ function App() {
                   muted
                   playsInline
                   className="main-video"
+                  style={{
+                    transform: isScreenSharing ? "none" : "scaleX(-1)", // Don't mirror when screen sharing
+                  }}
                   key="local-main-video"
                 />
                 {/* Video off overlay for local video */}
@@ -342,6 +355,7 @@ function App() {
               onClick={() => switchToMainView(null)}
               isMuted={isMuted}
               isVideoOff={isVideoOff}
+              isScreenSharing={isScreenSharing}
             />
           </div>
 
@@ -381,6 +395,7 @@ function App() {
                     onClick={() => switchToMainView(participant.userId)}
                     isMuted={participant.isMuted}
                     isVideoOff={participant.isVideoOff}
+                    isScreenSharing={participant.isScreenSharing}
                   />
                 );
               });
@@ -409,6 +424,16 @@ function App() {
           title={isVideoOff ? "Start Video" : "Stop Video"}
         >
           {isVideoOff ? "📵" : "📹"}
+        </button>
+
+        <button
+          onClick={toggleScreenShare}
+          className={`control-button control-button--circular control-button--screen-share ${
+            isScreenSharing ? "screen-sharing" : ""
+          }`}
+          title={isScreenSharing ? "Stop Screen Share" : "Share Screen"}
+        >
+          {isScreenSharing ? "🔳" : "🖥️"}
         </button>
 
         <button

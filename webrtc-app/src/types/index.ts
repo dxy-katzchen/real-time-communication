@@ -5,6 +5,7 @@ export interface Participant {
   peerConnection?: RTCPeerConnection;
   isMuted?: boolean;
   isVideoOff?: boolean;
+  isScreenSharing?: boolean;
 }
 
 export interface ChatMessage {
@@ -42,6 +43,7 @@ export interface SocketEvents {
     socketId: string;
     isMuted: boolean;
     isVideoOff: boolean;
+    isScreenSharing: boolean;
   }) => void;
   "chat-message": (data: {
     id: string;

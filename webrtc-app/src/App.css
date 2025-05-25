@@ -129,7 +129,7 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transform: scaleX(-1); /* Mirror local video */
+  /* Transform now handled inline based on screen sharing state */
 }
 
 /* Participant sidebar */
@@ -260,6 +260,22 @@
 
 .control-button--video.video-off:hover {
   background-color: #c82333;
+}
+
+.control-button--screen-share {
+  background-color: #6c757d;
+}
+
+.control-button--screen-share.screen-sharing {
+  background-color: #28a745;
+}
+
+.control-button--screen-share:hover {
+  background-color: #5a6268;
+}
+
+.control-button--screen-share.screen-sharing:hover {
+  background-color: #218838;
 }
 
 .control-button--leave {

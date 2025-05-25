@@ -64,3 +64,73 @@ export const attachStreamToVideo = (
     videoRef.current.play().catch(console.error);
   }
 };
+
+export const startScreenShare = async (): Promise<MediaStream> => {
+  try {
+    const screenStream = await navigator.mediaDevices.getDisplayMedia({
+      video: {
+        width: { ideal: 1920, max: 2560 },
+        height: { ideal: 1080, max: 1440 },
+        frameRate: { ideal: 30, max: 60 },
+      },
+      audio: true, // Include system audio
+    });
+
+    console.log("Screen share started successfully:", {
+      videoTracks: screenStream.getVideoTracks().length,
+      audioTracks: screenStream.getAudioTracks().length,
+    });
+
+    return screenStream;
+  } catch (error) {
+    console.error("Error starting screen share:", error);
+    throw error;
+  }
+};
+
+export const stopScreenShare = (
+  screenStreamRef: React.MutableRefObject<MediaStream | null>
+) => {
+  if (screenStreamRef.current) {
+    console.log("Stopping screen share...");
+    screenStreamRef.current.getTracks().forEach((track) => {
+      console.log(`Stopping screen share ${track.kind} track`);
+      track.stop();
+    });
+    screenStreamRef.current = null;
+  }
+};
+
+export const replaceVideoTrack = async (
+  peerConnections: Map<string, RTCPeerConnection>,
+  newVideoTrack: MediaStreamTrack
+): Promise<void> => {
+  console.log("Replacing video track for all peer connections");
+
+  const replacePromises = Array.from(peerConnections.entries()).map(
+    async ([participantId, pc]) => {
+      try {
+        const senders = pc.getSenders();
+        const videoSender = senders.find(
+          (sender) => sender.track && sender.track.kind === "video"
+        );
+
+        if (videoSender) {
+          await videoSender.replaceTrack(newVideoTrack);
+          console.log(`Video track replaced for participant ${participantId}`);
+        } else {
+          console.warn(
+            `No video sender found for participant ${participantId}`
+          );
+        }
+      } catch (error) {
+        console.error(
+          `Error replacing video track for participant ${participantId}:`,
+          error
+        );
+      }
+    }
+  );
+
+  await Promise.all(replacePromises);
+};

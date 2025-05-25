@@ -11,6 +11,7 @@ export const ParticipantThumbnail: React.FC<{
   onClick: () => void;
   isMuted?: boolean;
   isVideoOff?: boolean;
+  isScreenSharing?: boolean;
 }> = ({
   isLocal,
   stream,
@@ -21,6 +22,7 @@ export const ParticipantThumbnail: React.FC<{
   onClick,
   isMuted,
   isVideoOff,
+  isScreenSharing,
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -284,7 +286,7 @@ export const ParticipantThumbnail: React.FC<{
               width: "100%",
               height: "100%",
               objectFit: "cover",
-              transform: isLocal ? "scaleX(-1)" : "none", // Mirror only local video
+              transform: isLocal && !isScreenSharing ? "scaleX(-1)" : "none", // Mirror local video except when screen sharing
               backgroundColor: "#000",
             }}
           />
@@ -493,6 +495,30 @@ export const ParticipantThumbnail: React.FC<{
             }
           >
             📵
+          </div>
+        )}
+
+        {/* Screen sharing status indicator */}
+        {isScreenSharing && (
+          <div
+            style={{
+              backgroundColor: "rgba(40,167,69,0.8)",
+              color: "white",
+              borderRadius: "50%",
+              width: "20px",
+              height: "20px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "10px",
+            }}
+            title={
+              isLocal
+                ? "You are sharing screen"
+                : `${displayName} is sharing screen`
+            }
+          >
+            🖥️
           </div>
         )}
 

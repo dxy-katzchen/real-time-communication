@@ -6,10 +6,7 @@ export const ICE_SERVERS = [
   { urls: "stun:stun3.l.google.com:19302" },
   { urls: "stun:stun4.l.google.com:19302" },
   {
-    urls: [
-      "turn:real-time-chat.com:3478",
-      "turns:real-time-chat.com:5349", // Optional: only if TLS is working
-    ],
+    urls: ["turn:real-time-chat.com:3478", "turns:real-time-chat.com:5349"],
     username: "webrtcuser",
     credential: "securepassword",
   },

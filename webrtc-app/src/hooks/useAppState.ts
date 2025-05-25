@@ -29,6 +29,7 @@ export const useAppState = () => {
   const [connectionStatus, setConnectionStatus] = useState("Not connected");
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [isEndingMeeting, setIsEndingMeeting] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
 
@@ -77,6 +78,8 @@ export const useAppState = () => {
     setIsMuted,
     isVideoOff,
     setIsVideoOff,
+    isScreenSharing,
+    setIsScreenSharing,
     isEndingMeeting,
     setIsEndingMeeting,
     isCopied,
