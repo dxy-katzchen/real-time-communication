@@ -104,13 +104,13 @@ function App() {
     // Set up 10-second timeout for connection
     const timeout = setTimeout(() => {
       const startTime = connectionStartTimes.current.get(participantSocketId);
-      if (startTime && Date.now() - startTime >= 10000) {
+      if (startTime && Date.now() - startTime >= 5000) {
         console.log(
           `Connection timeout for ${participantSocketId}, attempting reconnect...`
         );
         handleConnectionTimeout(participantSocketId);
       }
-    }, 10000);
+    }, 5000);
 
     setConnectionTimeouts((prev) => {
       const updated = new Map(prev);
