@@ -49,10 +49,6 @@ const Chat: React.FC<ChatProps> = ({
     });
   };
 
-  const getAvatarInitial = (username: string) => {
-    return username.charAt(0).toUpperCase();
-  };
-
   if (!isOpen) return null;
 
   return (
@@ -88,15 +84,6 @@ const Chat: React.FC<ChatProps> = ({
                     : "other-message"
                 }`}
               >
-                <div
-                  className={`message-avatar ${
-                    message.userId === currentUserId
-                      ? "own-avatar"
-                      : "other-avatar"
-                  }`}
-                >
-                  {getAvatarInitial(message.username)}
-                </div>
                 <div className="message-bubble">
                   <div className="message-header">
                     <span className="message-sender">
