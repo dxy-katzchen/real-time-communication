@@ -412,7 +412,7 @@ export const ParticipantThumbnail: React.FC<{
         }}
       >
         {/* Audio status indicator */}
-        {isLocal && isMuted && (
+        {isMuted && (
           <div
             style={{
               backgroundColor: "rgba(220,53,69,0.8)",
@@ -425,13 +425,14 @@ export const ParticipantThumbnail: React.FC<{
               justifyContent: "center",
               fontSize: "10px",
             }}
+            title={isLocal ? "You are muted" : `${displayName} is muted`}
           >
             🔇
           </div>
         )}
 
         {/* Video status indicator */}
-        {isLocal && isVideoOff && (
+        {isVideoOff && (
           <div
             style={{
               backgroundColor: "rgba(220,53,69,0.8)",
@@ -444,6 +445,9 @@ export const ParticipantThumbnail: React.FC<{
               justifyContent: "center",
               fontSize: "10px",
             }}
+            title={
+              isLocal ? "Your video is off" : `${displayName}'s video is off`
+            }
           >
             📵
           </div>

@@ -3,6 +3,8 @@ export interface Participant {
   socketId: string;
   stream?: MediaStream;
   peerConnection?: RTCPeerConnection;
+  isMuted?: boolean;
+  isVideoOff?: boolean;
 }
 
 export interface SocketEvents {
@@ -27,6 +29,12 @@ export interface SocketEvents {
     fromUserId: string;
   }) => void;
   "meeting-ended": (data: { meetingId: string }) => void;
+  "media-status-changed": (data: {
+    userId: string;
+    socketId: string;
+    isMuted: boolean;
+    isVideoOff: boolean;
+  }) => void;
 }
 
 export interface MainParticipantView {

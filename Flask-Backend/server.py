@@ -332,6 +332,24 @@ def on_ice_candidate(data):
             'fromUserId': data.get('fromUserId')
         }, to=target_socket)
 
+@socketio.on('media-status-update')
+def on_media_status_update(data):
+    room = data.get('room')
+    user_id = data.get('userId')
+    is_muted = data.get('isMuted', False)
+    is_video_off = data.get('isVideoOff', False)
+    
+    print(f"Media status update from {user_id}: muted={is_muted}, video_off={is_video_off}")
+    
+    if room:
+        # Broadcast the media status to all other participants in the room
+        socketio.emit('media-status-changed', {
+            'userId': user_id,
+            'socketId': request.sid,
+            'isMuted': is_muted,
+            'isVideoOff': is_video_off
+        }, to=room, include_self=False)
+
 if __name__ == '__main__':
     print("Starting Flask-SocketIO server...")
     

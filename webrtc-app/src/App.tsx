@@ -9,6 +9,7 @@ import { useWebRTCConnection } from "./hooks/useWebRTCConnection";
 import { useSocketSetup } from "./hooks/useSocketSetup";
 import { useSocketEvents } from "./hooks/useSocketEvents";
 import { useEffects } from "./hooks/useEffects";
+import { useMediaStatusSync } from "./hooks/useMediaStatusSync";
 import "./App.css";
 
 function App() {
@@ -51,6 +52,16 @@ function App() {
     setRemoteParticipants,
   });
 
+  // Media status synchronization
+  const { broadcastMediaStatus, handleMediaStatusChanged } = useMediaStatusSync(
+    {
+      socketRef,
+      meetingId,
+      userId,
+      setRemoteParticipants,
+    }
+  );
+
   // Media controls
   const { startMedia, toggleAudio, toggleVideo, copyMeetingId } =
     useMediaControls({
@@ -60,6 +71,7 @@ function App() {
       setIsMuted,
       isVideoOff,
       setIsVideoOff,
+      broadcastMediaStatus,
     });
 
   // Meeting operations
@@ -105,6 +117,7 @@ function App() {
     onAnswer: webRTCHandlers.handleAnswer,
     onIceCandidate: webRTCHandlers.handleIceCandidate,
     onLeaveMeeting: handleLeaveMeeting,
+    onMediaStatusChanged: handleMediaStatusChanged,
   });
 
   // Effects management
@@ -321,6 +334,8 @@ function App() {
                     isHost={info?.isHost || false}
                     isActive={mainParticipant === participant.userId}
                     onClick={() => switchToMainView(participant.userId)}
+                    isMuted={participant.isMuted}
+                    isVideoOff={participant.isVideoOff}
                   />
                 );
               });

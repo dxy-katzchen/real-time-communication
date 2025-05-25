@@ -12,6 +12,7 @@ interface UseMediaControlsProps {
   setIsMuted: React.Dispatch<React.SetStateAction<boolean>>;
   isVideoOff: boolean;
   setIsVideoOff: React.Dispatch<React.SetStateAction<boolean>>;
+  broadcastMediaStatus?: (isMuted: boolean, isVideoOff: boolean) => void;
 }
 
 export const useMediaControls = ({
@@ -21,6 +22,7 @@ export const useMediaControls = ({
   setIsMuted,
   isVideoOff,
   setIsVideoOff,
+  broadcastMediaStatus,
 }: UseMediaControlsProps) => {
   const startMedia = useCallback(async () => {
     try {
@@ -41,8 +43,13 @@ export const useMediaControls = ({
   const toggleAudio = useCallback(() => {
     if (localStreamRef.current) {
       toggleAudioTrack(localStreamRef, isMuted, setIsMuted);
+
+      // Broadcast the new audio status to other participants
+      if (broadcastMediaStatus) {
+        broadcastMediaStatus(!isMuted, isVideoOff);
+      }
     }
-  }, [localStreamRef, isMuted, setIsMuted]);
+  }, [localStreamRef, isMuted, setIsMuted, broadcastMediaStatus, isVideoOff]);
 
   const toggleVideo = useCallback(() => {
     if (localStreamRef.current) {
@@ -51,8 +58,19 @@ export const useMediaControls = ({
         track.enabled = !track.enabled;
       });
       setIsVideoOff(!isVideoOff);
+
+      // Broadcast the new video status to other participants
+      if (broadcastMediaStatus) {
+        broadcastMediaStatus(isMuted, !isVideoOff);
+      }
     }
-  }, [localStreamRef, isVideoOff, setIsVideoOff]);
+  }, [
+    localStreamRef,
+    isVideoOff,
+    setIsVideoOff,
+    broadcastMediaStatus,
+    isMuted,
+  ]);
 
   const switchToMainView = useCallback((participantId: string | null) => {
     // This will be handled by the parent component that uses this hook

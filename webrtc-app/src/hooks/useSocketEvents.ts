@@ -28,6 +28,12 @@ interface UseSocketEventsProps {
     fromUserId: string;
   }) => void;
   onLeaveMeeting: () => void;
+  onMediaStatusChanged?: (data: {
+    userId: string;
+    socketId: string;
+    isMuted: boolean;
+    isVideoOff: boolean;
+  }) => void;
 }
 
 export const useSocketEvents = ({
@@ -42,6 +48,7 @@ export const useSocketEvents = ({
   onAnswer,
   onIceCandidate,
   onLeaveMeeting,
+  onMediaStatusChanged,
 }: UseSocketEventsProps) => {
   const handleMeetingEnded = useCallback(
     (data: { meetingId: string }) => {
@@ -68,6 +75,11 @@ export const useSocketEvents = ({
     socket.on("ice-candidate", onIceCandidate);
     socket.on("meeting-ended", handleMeetingEnded);
 
+    // Media status event listener
+    if (onMediaStatusChanged) {
+      socket.on("media-status-changed", onMediaStatusChanged);
+    }
+
     // Cleanup previous listeners
     return () => {
       socket.off("user-joined", onUserJoined);
@@ -77,6 +89,10 @@ export const useSocketEvents = ({
       socket.off("answer", onAnswer);
       socket.off("ice-candidate", onIceCandidate);
       socket.off("meeting-ended", handleMeetingEnded);
+
+      if (onMediaStatusChanged) {
+        socket.off("media-status-changed", onMediaStatusChanged);
+      }
     };
   }, [
     socketRef,
@@ -89,6 +105,7 @@ export const useSocketEvents = ({
     onAnswer,
     onIceCandidate,
     handleMeetingEnded,
+    onMediaStatusChanged,
   ]);
 
   // Join room when called
