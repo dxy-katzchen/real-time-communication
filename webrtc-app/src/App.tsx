@@ -40,6 +40,12 @@ function App() {
   const localStreamRef = useRef<MediaStream | null>(null);
   const [isEndingMeeting, setIsEndingMeeting] = useState(false);
 
+  // Add connection tracking state
+  const [connectionTimeouts, setConnectionTimeouts] = useState<
+    Map<string, NodeJS.Timeout>
+  >(new Map());
+  const connectionStartTimes = useRef<Map<string, number>>(new Map());
+
   // Handle user creation/login
   const handleUserCreated = (userId: string, username: string) => {
     setUserId(userId);
@@ -86,6 +92,32 @@ function App() {
       `Creating peer connection for ${participantSocketId}, isInitiator: ${isInitiator}`
     );
 
+    // Clear any existing timeout for this participant
+    const existingTimeout = connectionTimeouts.get(participantSocketId);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+    }
+
+    // Record connection start time
+    connectionStartTimes.current.set(participantSocketId, Date.now());
+
+    // Set up 10-second timeout for connection
+    const timeout = setTimeout(() => {
+      const startTime = connectionStartTimes.current.get(participantSocketId);
+      if (startTime && Date.now() - startTime >= 10000) {
+        console.log(
+          `Connection timeout for ${participantSocketId}, attempting reconnect...`
+        );
+        handleConnectionTimeout(participantSocketId);
+      }
+    }, 10000);
+
+    setConnectionTimeouts((prev) => {
+      const updated = new Map(prev);
+      updated.set(participantSocketId, timeout);
+      return updated;
+    });
+
     const pc = new RTCPeerConnection({
       iceServers: [
         // Google STUN servers
@@ -131,7 +163,7 @@ function App() {
       iceCandidatePoolSize: 10,
       bundlePolicy: "max-bundle",
       rtcpMuxPolicy: "require",
-      iceTransportPolicy: "all", // Allow both STUN and TURN
+      iceTransportPolicy: "all",
     });
 
     // Track connection attempt and retry count
@@ -186,6 +218,9 @@ function App() {
       if (event.streams && event.streams[0]) {
         const stream = event.streams[0];
 
+        // Clear connection timeout on successful track reception
+        clearConnectionTimeout(participantSocketId);
+
         // Add stream event listeners
         stream.getTracks().forEach((track) => {
           track.onended = () => {
@@ -220,7 +255,7 @@ function App() {
       }
     };
 
-    // Enhanced ICE connection state handling with retry logic
+    // Enhanced ICE connection state handling with timeout clearing
     pc.oniceconnectionstatechange = () => {
       console.log(
         `ICE connection state with ${participantSocketId}:`,
@@ -228,12 +263,23 @@ function App() {
       );
 
       switch (pc.iceConnectionState) {
+        case "connected":
+        case "completed":
+          console.log(`Successfully connected to ${participantSocketId}`);
+          connectionAttempts = 0;
+          // Clear connection timeout on successful connection
+          clearConnectionTimeout(participantSocketId);
+          break;
+
         case "failed":
           console.log(
             `Connection failed with ${participantSocketId}, attempt ${
               connectionAttempts + 1
             }/${maxAttempts}`
           );
+
+          // Clear timeout since we're handling the failure
+          clearConnectionTimeout(participantSocketId);
 
           if (connectionAttempts < maxAttempts) {
             connectionAttempts++;
@@ -244,7 +290,6 @@ function App() {
                 );
                 await pc.restartIce();
 
-                // If we're the initiator, create a new offer with ice restart
                 if (isInitiator) {
                   const offer = await pc.createOffer({ iceRestart: true });
                   await pc.setLocalDescription(offer);
@@ -263,7 +308,6 @@ function App() {
                   restartError
                 );
 
-                // If all attempts failed, try recreating the connection
                 if (connectionAttempts >= maxAttempts) {
                   console.log(
                     `Max attempts reached, recreating connection for ${participantSocketId}`
@@ -273,7 +317,7 @@ function App() {
                   }, 2000);
                 }
               }
-            }, Math.pow(2, connectionAttempts) * 1000); // Exponential backoff
+            }, Math.pow(2, connectionAttempts) * 1000);
           } else {
             console.log(
               `Max connection attempts reached for ${participantSocketId}, recreating connection`
@@ -284,16 +328,16 @@ function App() {
           }
           break;
 
-        case "connected":
-        case "completed":
-          console.log(`Successfully connected to ${participantSocketId}`);
-          connectionAttempts = 0; // Reset attempts on successful connection
-          break;
-
         case "disconnected":
           console.log(
             `Disconnected from ${participantSocketId}, waiting for reconnection...`
           );
+          break;
+
+        case "checking":
+          // Reset timeout when connection checking starts
+          console.log(`Connection checking for ${participantSocketId}`);
+          connectionStartTimes.current.set(participantSocketId, Date.now());
           break;
       }
     };
@@ -307,11 +351,15 @@ function App() {
 
       if (pc.connectionState === "failed") {
         console.log(`Overall connection failed with ${participantSocketId}`);
+        clearConnectionTimeout(participantSocketId);
         if (connectionAttempts < maxAttempts) {
           setTimeout(() => {
             recreateConnection(participantSocketId);
           }, 3000);
         }
+      } else if (pc.connectionState === "connected") {
+        // Clear timeout on successful connection
+        clearConnectionTimeout(participantSocketId);
       }
     };
 
@@ -335,9 +383,59 @@ function App() {
     return pc;
   };
 
-  // Function to recreate a failed connection
+  // Function to clear connection timeout
+  const clearConnectionTimeout = (participantSocketId: string) => {
+    const timeout = connectionTimeouts.get(participantSocketId);
+    if (timeout) {
+      clearTimeout(timeout);
+      setConnectionTimeouts((prev) => {
+        const updated = new Map(prev);
+        updated.delete(participantSocketId);
+        return updated;
+      });
+    }
+    connectionStartTimes.current.delete(participantSocketId);
+  };
+
+  // Handle connection timeout (10+ seconds of connecting)
+  const handleConnectionTimeout = async (participantSocketId: string) => {
+    console.log(`Handling connection timeout for ${participantSocketId}`);
+
+    const pc = peerConnections.current.get(participantSocketId);
+    if (!pc) return;
+
+    // Check current connection state
+    const connectionState = pc.iceConnectionState;
+    console.log(`Connection state during timeout: ${connectionState}`);
+
+    // Only proceed if still connecting/checking
+    if (connectionState === "checking" || connectionState === "new") {
+      console.log(
+        `Connection stuck in ${connectionState} state, forcing reconnect...`
+      );
+
+      // Force reconnection for this specific participant
+      await recreateConnection(participantSocketId);
+    } else if (
+      connectionState === "failed" ||
+      connectionState === "disconnected"
+    ) {
+      console.log(`Connection in ${connectionState} state, recreating...`);
+      await recreateConnection(participantSocketId);
+    } else {
+      console.log(
+        `Connection state ${connectionState} is acceptable, clearing timeout`
+      );
+      clearConnectionTimeout(participantSocketId);
+    }
+  };
+
+  // Enhanced recreateConnection function
   const recreateConnection = async (participantSocketId: string) => {
     console.log(`Recreating connection for ${participantSocketId}`);
+
+    // Clear any existing timeout
+    clearConnectionTimeout(participantSocketId);
 
     // Close and remove old connection
     const oldPc = peerConnections.current.get(participantSocketId);
@@ -395,10 +493,16 @@ function App() {
     }, 2000);
   };
 
+  // Enhanced handleReconnect function
   const handleReconnect = async () => {
     console.log("Force reconnecting all peer connections...");
 
     try {
+      // Clear all connection timeouts
+      connectionTimeouts.forEach((timeout) => clearTimeout(timeout));
+      setConnectionTimeouts(new Map());
+      connectionStartTimes.current.clear();
+
       // Close all existing peer connections
       peerConnections.current.forEach((pc, socketId) => {
         console.log(`Closing peer connection for ${socketId}`);
@@ -632,6 +736,11 @@ function App() {
 
   // Enhanced leave meeting for hosts
   const handleLeaveMeeting = async () => {
+    // Clear all connection timeouts
+    connectionTimeouts.forEach((timeout) => clearTimeout(timeout));
+    setConnectionTimeouts(new Map());
+    connectionStartTimes.current.clear();
+
     if (isHost && meetingId) {
       // Host must end meeting for all
       const confirmEnd = window.confirm(
