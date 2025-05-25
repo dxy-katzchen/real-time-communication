@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import Auth from "./Components/Auth/Auth";
 import MeetingLobby from "./Components/MeetingLobby/MeetingLobby";
-import Chat from "./Components/Chat";
+import Chat from "./Components/Chat/Chat";
 import { ParticipantThumbnail } from "./Components/ParticipantThumbnail";
 import { MainVideoComponent } from "./Components/MainVideoComponent";
 import { useAppState } from "./hooks/useAppState";
