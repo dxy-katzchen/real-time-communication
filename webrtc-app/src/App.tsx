@@ -395,6 +395,63 @@ function App() {
     }, 2000);
   };
 
+  const handleReconnect = async () => {
+    console.log("Force reconnecting all peer connections...");
+
+    try {
+      // Close all existing peer connections
+      peerConnections.current.forEach((pc, socketId) => {
+        console.log(`Closing peer connection for ${socketId}`);
+        pc.close();
+      });
+      peerConnections.current.clear();
+
+      // Clear remote participants streams
+      setRemoteParticipants((prev) => {
+        const updated = new Map();
+        prev.forEach((participant, socketId) => {
+          updated.set(socketId, {
+            ...participant,
+            stream: undefined,
+            peerConnection: undefined,
+          });
+        });
+        return updated;
+      });
+
+      // Ensure we have fresh local media
+      if (localStreamRef.current) {
+        console.log("Stopping current local stream for reconnect...");
+        localStreamRef.current.getTracks().forEach((track) => track.stop());
+        localStreamRef.current = null;
+      }
+
+      // Get fresh media stream
+      await startMedia();
+
+      // Wait a bit for media to be ready
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Re-emit join to get fresh participant list and trigger new connections
+      if (socketRef.current && userId && meetingId) {
+        console.log("Re-joining room to trigger fresh connections...");
+        socketRef.current.emit("leave", { room: meetingId, userId });
+
+        // Wait a bit before rejoining
+        setTimeout(() => {
+          if (socketRef.current) {
+            socketRef.current.emit("join", { room: meetingId, userId });
+          }
+        }, 500);
+      }
+
+      console.log("Reconnect initiated successfully");
+    } catch (error) {
+      console.error("Error during reconnect:", error);
+      alert("Failed to reconnect. Please try again.");
+    }
+  };
+
   // Handle when a new user joins
   const handleUserJoined = async (data: {
     userId: string;
@@ -1382,6 +1439,22 @@ function App() {
           title={isVideoOff ? "Start Video" : "Stop Video"}
         >
           {isVideoOff ? "📵" : "📹"}
+        </button>
+
+        <button
+          onClick={handleReconnect}
+          style={{
+            padding: "10px 15px",
+            backgroundColor: "#007bff",
+            color: "white",
+            border: "none",
+            borderRadius: "4px",
+            cursor: "pointer",
+            fontWeight: "bold",
+          }}
+          title="Reconnect all video streams"
+        >
+          🔄 Reconnect
         </button>
 
         <button
