@@ -5,38 +5,13 @@ export const ICE_SERVERS = [
   { urls: "stun:stun2.l.google.com:19302" },
   { urls: "stun:stun3.l.google.com:19302" },
   { urls: "stun:stun4.l.google.com:19302" },
-
-  // Additional public STUN servers
-  { urls: "stun:stun.relay.metered.ca:80" },
-  { urls: "stun:global.stun.twilio.com:3478" },
-
-  // Metered TURN servers (multiple protocols and ports)
   {
-    urls: "turn:global.relay.metered.ca:80",
-    username: "92c0c0f3362e3c6f2f20a86d",
-    credential: "aK0V47jdAT0iaI4a",
-  },
-  {
-    urls: "turn:global.relay.metered.ca:80?transport=tcp",
-    username: "92c0c0f3362e3c6f2f20a86d",
-    credential: "aK0V47jdAT0iaI4a",
-  },
-  {
-    urls: "turn:global.relay.metered.ca:443",
-    username: "92c0c0f3362e3c6f2f20a86d",
-    credential: "aK0V47jdAT0iaI4a",
-  },
-  {
-    urls: "turns:global.relay.metered.ca:443?transport=tcp",
-    username: "92c0c0f3362e3c6f2f20a86d",
-    credential: "aK0V47jdAT0iaI4a",
-  },
-
-  // Additional TURN servers for better connectivity
-  {
-    urls: "turn:relay1.expressturn.com:3478",
-    username: "ef4BIXR2JUZ0JJ2HFPZ",
-    credential: "K5BdZjHHmKITB7xP",
+    urls: [
+      "turn:real-time-chat.com:3478",
+      "turns:real-time-chat.com:5349", // Optional: only if TLS is working
+    ],
+    username: "webrtcuser",
+    credential: "securepassword",
   },
 ];
 
