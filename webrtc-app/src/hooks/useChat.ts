@@ -18,7 +18,7 @@ export const useChat = ({
   meetingId,
   userId,
   username,
-  chatMessages,
+
   setChatMessages,
   isChatOpen,
   setUnreadMessagesCount,
