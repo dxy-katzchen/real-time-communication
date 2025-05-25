@@ -285,16 +285,36 @@ function App() {
                       left: 0,
                       width: "100%",
                       height: "100%",
-                      backgroundColor: "#000",
+                      backgroundColor: "#6c757d",
                       display: "flex",
+                      flexDirection: "column",
                       alignItems: "center",
                       justifyContent: "center",
                       color: "white",
-                      fontSize: "48px",
                       zIndex: 1,
                     }}
                   >
-                    📵
+                    <div style={{ fontSize: "72px", marginBottom: "10px" }}>
+                      {username ? username.charAt(0).toUpperCase() : "Y"}
+                    </div>
+                    {isMuted && (
+                      <div
+                        style={{
+                          backgroundColor: "rgba(220,53,69,0.9)",
+                          color: "white",
+                          borderRadius: "20px",
+                          width: "40px",
+                          height: "40px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "20px",
+                          marginTop: "10px",
+                        }}
+                      >
+                        🔇
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

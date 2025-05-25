@@ -298,16 +298,36 @@ export const ParticipantThumbnail: React.FC<{
                 left: 0,
                 width: "100%",
                 height: "100%",
-                backgroundColor: "#000",
+                backgroundColor: "#6c757d",
                 display: "flex",
+                flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
                 color: "white",
-                fontSize: "24px",
                 zIndex: 1,
               }}
             >
-              📵
+              <div style={{ fontSize: "36px", marginBottom: "5px" }}>
+                {displayName.charAt(0).toUpperCase()}
+              </div>
+              {isMuted && (
+                <div
+                  style={{
+                    backgroundColor: "rgba(220,53,69,0.9)",
+                    color: "white",
+                    borderRadius: "50%",
+                    width: "20px",
+                    height: "20px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "12px",
+                    marginTop: "5px",
+                  }}
+                >
+                  🔇
+                </div>
+              )}
             </div>
           )}
 
