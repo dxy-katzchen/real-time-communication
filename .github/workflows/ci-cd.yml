@@ -53,8 +53,8 @@ jobs:
         working-directory: ./Flask-Backend
         run: |
           python -m pip install --upgrade pip
-          pip install Flask Flask-CORS Flask-SocketIO pymongo
-          pip freeze > requirements.txt
+          # Don't overwrite the existing requirements.txt - use it instead
+          pip install -r requirements.txt
 
       - name: Test backend imports
         working-directory: ./Flask-Backend
@@ -134,6 +134,14 @@ jobs:
             source venv/bin/activate
             pip install --upgrade pip
             pip install -r requirements.txt
+
+            # Verify gunicorn installation
+            echo "Checking Gunicorn installation..."
+            which gunicorn
+            gunicorn --version
+
+            # Also verify the path exists
+            ls -la venv/bin/
 
             # Install and configure MongoDB if not already installed
             if ! command -v mongod &> /dev/null; then
