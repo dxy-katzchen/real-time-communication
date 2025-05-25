@@ -35,19 +35,35 @@ export const useEffects = ({
       console.log("Starting media for room join");
       startMedia();
     }
+  }, [inRoom, localStreamRef, startMedia]);
 
-    // Cleanup function for component unmount or when leaving room
+  // Cleanup media tracks when leaving room (inRoom becomes false)
+  useEffect(() => {
+    if (!inRoom && localStreamRef.current) {
+      console.log("Leaving room: Stopping all media tracks...");
+      localStreamRef.current.getTracks().forEach((track) => {
+        console.log(`Leaving room: Stopping ${track.kind} track`);
+        track.stop();
+      });
+      localStreamRef.current = null;
+    }
+  }, [inRoom]); // Only depend on inRoom state
+
+  // Cleanup media tracks only on component unmount
+  useEffect(() => {
+    // This cleanup only runs on component unmount
     return () => {
       if (localStreamRef.current) {
-        console.log("Cleanup: Stopping all media tracks...");
+        console.log("Component unmount: Stopping all media tracks...");
         localStreamRef.current.getTracks().forEach((track) => {
-          console.log(`Cleanup: Stopping ${track.kind} track`);
+          console.log(`Component unmount: Stopping ${track.kind} track`);
           track.stop();
         });
         localStreamRef.current = null;
       }
     };
-  }, [inRoom, localStreamRef, startMedia]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency array ensures this only runs on unmount
 
   // Join room when inRoom changes
   useEffect(() => {
