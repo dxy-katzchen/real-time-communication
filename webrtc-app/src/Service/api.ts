@@ -15,11 +15,6 @@ const BASE_URL = getBaseURL();
 const getHeaders = (includeContentType = true) => {
   const headers: Record<string, string> = {};
 
-  // Only add ngrok header in development when using ngrok
-  if (import.meta.env.DEV && BASE_URL.includes("ngrok")) {
-    headers["ngrok-skip-browser-warning"] = "true";
-  }
-
   if (includeContentType) {
     headers["Content-Type"] = "application/json";
   }
