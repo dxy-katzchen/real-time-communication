@@ -334,6 +334,15 @@ def on_ice_candidate(data):
 
 if __name__ == '__main__':
     print("Starting Flask-SocketIO server...")
-    import os
-    debug_mode = os.environ.get('FLASK_ENV') != 'production'
-    socketio.run(app, host='0.0.0.0', port=5002, debug=debug_mode, allow_unsafe_werkzeug=True)
+    
+    # Check if running in production
+    is_production = os.environ.get('FLASK_ENV') == 'production'
+    
+    if is_production:
+        # In production, don't run the development server directly
+        # This will be handled by Gunicorn
+        print("Production mode detected. Use Gunicorn to run this application.")
+        print("Example: gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:5002 server:app")
+    else:
+        # Development mode
+        socketio.run(app, host='0.0.0.0', port=5002, debug=True, allow_unsafe_werkzeug=True)
