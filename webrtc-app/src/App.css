@@ -21,6 +21,28 @@
   background-color: #f8d7da;
 }
 
+/* Copy meeting button */
+.copy-meeting-button {
+  background-color: rgba(94, 178, 33, 0.8) !important;
+  border: 1px solid rgba(123, 190, 117, 0.9) !important;
+  border-radius: 4px !important;
+  color: white !important;
+  padding: 4px 8px !important;
+  font-size: 12px !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  outline: none !important;
+}
+
+.copy-meeting-button:hover {
+  background-color: rgba(7, 72, 1, 0.8) !important;
+  transform: translateY(-1px);
+}
+
+.copy-meeting-button:active {
+  transform: translateY(0);
+}
+
 /* Main content area */
 .main-content {
   display: flex;

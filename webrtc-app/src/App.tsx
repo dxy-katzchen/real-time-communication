@@ -111,28 +111,12 @@ function App() {
 
     // Set up 5-second timeout for connection
     const timeout = setTimeout(() => {
-      const pc = peerConnections.current.get(participantSocketId);
-      if (!pc) return;
-      
-      const connectionState = pc.iceConnectionState;
       const startTime = connectionStartTimes.current.get(participantSocketId);
-      
-      // Only trigger timeout if connection is still not established
-      if (
-        startTime && 
-        Date.now() - startTime >= 5000 &&
-        connectionState !== "connected" &&
-        connectionState !== "completed"
-      ) {
+      if (startTime && Date.now() - startTime >= 5000) {
         console.log(
           `Connection timeout for ${participantSocketId}, attempting reconnect...`
         );
         handleConnectionTimeout(participantSocketId);
-      } else {
-        console.log(
-          `Connection timeout fired but connection is ${connectionState}, ignoring`
-        );
-        clearConnectionTimeout(participantSocketId);
       }
     }, 5000);
 
@@ -356,18 +340,12 @@ function App() {
           console.log(
             `Disconnected from ${participantSocketId}, waiting for reconnection...`
           );
-          // Don't immediately clear timeout on disconnected, let it try to reconnect
           break;
 
         case "checking":
           // Reset timeout when connection checking starts
           console.log(`Connection checking for ${participantSocketId}`);
           connectionStartTimes.current.set(participantSocketId, Date.now());
-          break;
-
-        case "new":
-          // Connection is starting
-          console.log(`New connection state for ${participantSocketId}`);
           break;
       }
     };
@@ -389,7 +367,6 @@ function App() {
         }
       } else if (pc.connectionState === "connected") {
         // Clear timeout on successful connection
-        console.log(`Overall connection successful with ${participantSocketId}`);
         clearConnectionTimeout(participantSocketId);
       }
     };
@@ -428,28 +405,18 @@ function App() {
     connectionStartTimes.current.delete(participantSocketId);
   };
 
-  // Handle connection timeout (5+ seconds of connecting)
+  // Handle connection timeout (10+ seconds of connecting)
   const handleConnectionTimeout = async (participantSocketId: string) => {
     console.log(`Handling connection timeout for ${participantSocketId}`);
 
     const pc = peerConnections.current.get(participantSocketId);
-    if (!pc) {
-      console.log(`No peer connection found for ${participantSocketId}, skipping timeout handling`);
-      return;
-    }
+    if (!pc) return;
 
     // Check current connection state
     const connectionState = pc.iceConnectionState;
     console.log(`Connection state during timeout: ${connectionState}`);
 
-    // Only proceed if connection is not already successful
-    if (connectionState === "connected" || connectionState === "completed") {
-      console.log(`Connection already successful (${connectionState}), clearing timeout`);
-      clearConnectionTimeout(participantSocketId);
-      return;
-    }
-
-    // Only proceed if still connecting/checking or failed
+    // Only proceed if still connecting/checking
     if (connectionState === "checking" || connectionState === "new") {
       console.log(
         `Connection stuck in ${connectionState} state, forcing reconnect...`
@@ -478,30 +445,22 @@ function App() {
     // Clear any existing timeout
     clearConnectionTimeout(participantSocketId);
 
-    // Get participant info BEFORE closing connection
-    const participant = remoteParticipants.get(participantSocketId);
-    if (!participant) {
-      console.log(`No participant found for ${participantSocketId}, cannot recreate`);
-      return;
-    }
-
     // Close and remove old connection
     const oldPc = peerConnections.current.get(participantSocketId);
     if (oldPc) {
-      console.log(`Closing old peer connection for ${participantSocketId}`);
       oldPc.close();
       peerConnections.current.delete(participantSocketId);
     }
 
-    // Wait a bit before recreating
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    // Double-check participant still exists after wait
-    const stillExists = remoteParticipants.get(participantSocketId);
-    if (!stillExists) {
-      console.log(`Participant ${participantSocketId} no longer exists, aborting recreation`);
+    // Get participant info
+    const participant = remoteParticipants.get(participantSocketId);
+    if (!participant) {
+      console.log(`No participant found for ${participantSocketId}`);
       return;
     }
+
+    // Wait a bit before recreating
+    await new Promise((resolve) => setTimeout(resolve, 1000));
 
     // Create new connection
     const pc = createPeerConnection(participantSocketId, true);
@@ -514,28 +473,18 @@ function App() {
         existingParticipant.peerConnection = pc;
         existingParticipant.stream = undefined; // Reset stream
         updated.set(participantSocketId, existingParticipant);
-        console.log(`Updated participant ${participantSocketId} with new peer connection`);
-      } else {
-        console.log(`Participant ${participantSocketId} not found during update, aborting`);
       }
       return updated;
     });
 
     // Wait a bit then create offer
     setTimeout(async () => {
-      // Final check that participant and connection still exist
-      const finalCheck = peerConnections.current.get(participantSocketId);
-      if (!finalCheck) {
-        console.log(`Peer connection for ${participantSocketId} no longer exists, aborting offer`);
-        return;
-      }
-
       try {
-        const offer = await finalCheck.createOffer({
+        const offer = await pc.createOffer({
           offerToReceiveAudio: true,
           offerToReceiveVideo: true,
         });
-        await finalCheck.setLocalDescription(offer);
+        await pc.setLocalDescription(offer);
 
         socketRef.current?.emit("offer", {
           offer,
@@ -999,24 +948,21 @@ function App() {
     }
 
     // ENHANCED: Cleanup function for component unmount or when leaving room
-    // Capture ref values at effect creation time
-    const currentLocalStream = localStreamRef.current;
-    const currentVideoEl = localVideo.current;
-    
     return () => {
-      if (currentLocalStream) {
+      if (localStreamRef.current) {
         console.log("Cleanup: Stopping all media tracks...");
-        currentLocalStream.getTracks().forEach((track) => {
+        localStreamRef.current.getTracks().forEach((track) => {
           console.log(`Cleanup: Stopping ${track.kind} track`);
           track.stop();
         });
         localStreamRef.current = null;
       }
 
-      if (currentVideoEl) {
+      const videoEl = localVideo.current;
+      if (videoEl) {
         console.log("Cleanup: Clearing local video element...");
-        currentVideoEl.srcObject = null;
-        currentVideoEl.pause();
+        videoEl.srcObject = null;
+        videoEl.pause();
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1336,6 +1282,44 @@ function App() {
     ? { displayName: username, isHost }
     : participants.find((p) => p.userId === mainView.userId);
 
+  // Copy meeting ID to clipboard
+  const copyMeetingId = async () => {
+    if (!meetingId) return;
+
+    try {
+      await navigator.clipboard.writeText(meetingId);
+      // Show temporary success feedback
+      const button = document.querySelector(
+        ".copy-meeting-button"
+      ) as HTMLButtonElement;
+      if (button) {
+        const originalText = button.innerHTML;
+        button.innerHTML = "✓ Copied!";
+        button.style.backgroundColor = "#28a745";
+        setTimeout(() => {
+          button.innerHTML = originalText;
+          button.style.backgroundColor = "";
+        }, 2000);
+      }
+    } catch (error) {
+      console.error("Failed to copy meeting ID:", error);
+      // Fallback for older browsers
+      const textArea = document.createElement("textarea");
+      textArea.value = meetingId;
+      document.body.appendChild(textArea);
+      textArea.select();
+      try {
+        document.execCommand("copy");
+        alert("Meeting ID copied to clipboard!");
+      } catch (fallbackError) {
+        console.error("Fallback copy failed:", fallbackError);
+        alert(`Meeting ID: ${meetingId}\nPlease copy manually.`);
+      } finally {
+        document.body.removeChild(textArea);
+      }
+    }
+  };
+
   return (
     <div className="app-container">
       {/* Status bar */}
@@ -1346,9 +1330,36 @@ function App() {
             : "status-bar--disconnected"
         }`}
       >
-        <span>
-          Meeting ID: {meetingId} {isHost && "(Host)"}
-        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <span>
+            Meeting ID: {meetingId} {isHost && "(Host)"}
+          </span>
+          <button
+            onClick={copyMeetingId}
+            className="copy-meeting-button"
+            title="Copy Meeting ID"
+            style={{
+              backgroundColor: "rgba(255, 255, 255, 0.2)",
+              border: "1px solid rgba(255, 255, 255, 0.3)",
+              borderRadius: "4px",
+              color: "white",
+              padding: "4px 8px",
+              fontSize: "12px",
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor =
+                "rgba(255, 255, 255, 0.3)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor =
+                "rgba(255, 255, 255, 0.2)";
+            }}
+          >
+            📋 Copy
+          </button>
+        </div>
         <span>Status: {connectionStatus}</span>
       </div>
 
@@ -1461,6 +1472,14 @@ function App() {
           className="control-button control-button--leave"
         >
           {isHost ? "End Meeting" : "Leave"}
+        </button>
+
+        <button
+          onClick={copyMeetingId}
+          className="control-button control-button--copy-meeting-id"
+          title="Copy Meeting ID"
+        >
+          📋 Copy ID
         </button>
       </div>
     </div>
