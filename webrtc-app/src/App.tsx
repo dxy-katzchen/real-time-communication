@@ -289,25 +289,37 @@ function App() {
 
           {/* Remote participants */}
           <div className="remote-participants-container">
-            {Array.from(remoteParticipants.values()).map((participant) => {
-              const info = participants.find(
-                (p) => p.userId === participant.userId
-              );
-              const displayName =
-                info?.displayName || info?.username || "Unknown";
-              return (
-                <ParticipantThumbnail
-                  key={participant.socketId}
-                  isLocal={false}
-                  stream={participant.stream}
-                  userId={participant.userId}
-                  displayName={displayName}
-                  isHost={info?.isHost || false}
-                  isActive={mainParticipant === participant.userId}
-                  onClick={() => switchToMainView(participant.userId)}
-                />
-              );
-            })}
+            {(() => {
+              const remoteParticipantList = Array.from(remoteParticipants.values());
+              console.log("Rendering remote participants:", remoteParticipantList.map(p => ({
+                userId: p.userId,
+                socketId: p.socketId,
+                hasStream: !!p.stream,
+                streamId: p.stream?.id,
+                videoTracks: p.stream?.getVideoTracks().length || 0,
+                audioTracks: p.stream?.getAudioTracks().length || 0
+              })));
+              
+              return remoteParticipantList.map((participant) => {
+                const info = participants.find(
+                  (p) => p.userId === participant.userId
+                );
+                const displayName =
+                  info?.displayName || info?.username || "Unknown";
+                return (
+                  <ParticipantThumbnail
+                    key={participant.socketId}
+                    isLocal={false}
+                    stream={participant.stream}
+                    userId={participant.userId}
+                    displayName={displayName}
+                    isHost={info?.isHost || false}
+                    isActive={mainParticipant === participant.userId}
+                    onClick={() => switchToMainView(participant.userId)}
+                  />
+                );
+              });
+            })()}
           </div>
         </div>
       </div>
