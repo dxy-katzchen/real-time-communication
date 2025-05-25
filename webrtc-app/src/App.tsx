@@ -996,10 +996,11 @@ function App() {
         };
 
         try {
-          // Set video properties before playing
-          localVideo.current.muted = true;
+          // Set video properties before playing - ENSURE MUTED IS TRUE
+          localVideo.current.muted = true; // This is critical!
           localVideo.current.playsInline = true;
           localVideo.current.autoplay = true;
+          localVideo.current.volume = 0; // Extra safety
 
           await localVideo.current.play();
           console.log("Local video playing");
