@@ -1,9 +1,10 @@
 import { useRef, useCallback, useState } from "react";
+import { Socket } from "socket.io-client";
 import type { Participant } from "../types";
 
 interface UseWebRTCConnectionProps {
   localStreamRef: React.MutableRefObject<MediaStream | null>;
-  socketRef: React.MutableRefObject<any>;
+  socketRef: React.MutableRefObject<Socket | null>;
   userId: string | null;
   setRemoteParticipants: React.Dispatch<
     React.SetStateAction<Map<string, Participant>>
@@ -89,7 +90,9 @@ export const useWebRTCConnection = ({
         }
       }, 2000);
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [clearConnectionTimeout, socketRef, userId, setRemoteParticipants]
+    // Note: createPeerConnection is intentionally excluded from deps to avoid circular dependency
   );
 
   // Handle connection timeout
@@ -451,6 +454,7 @@ export const useWebRTCConnection = ({
       peerConnections.current.set(participantSocketId, pc);
       return pc;
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [
       localStreamRef,
       socketRef,
@@ -459,7 +463,7 @@ export const useWebRTCConnection = ({
       connectionTimeouts,
       handleConnectionTimeout,
       clearConnectionTimeout,
-      recreateConnection,
+      // Note: recreateConnection is intentionally excluded from deps to avoid circular dependency
     ]
   );
 
@@ -702,42 +706,6 @@ export const useWebRTCConnection = ({
     [createPeerConnection, setRemoteParticipants]
   );
 
-  const handleReconnect = useCallback(async () => {
-    console.log("Force reconnecting all peer connections...");
-
-    try {
-      // Clear all connection timeouts
-      connectionTimeouts.forEach((timeout) => clearTimeout(timeout));
-      setConnectionTimeouts(new Map());
-      connectionStartTimes.current.clear();
-
-      // Close all existing peer connections
-      peerConnections.current.forEach((pc, socketId) => {
-        console.log(`Closing peer connection for ${socketId}`);
-        pc.close();
-      });
-      peerConnections.current.clear();
-
-      // Clear remote participants streams
-      setRemoteParticipants((prev) => {
-        const updated = new Map();
-        prev.forEach((participant, socketId) => {
-          updated.set(socketId, {
-            ...participant,
-            stream: undefined,
-            peerConnection: undefined,
-          });
-        });
-        return updated;
-      });
-
-      console.log("Reconnect initiated successfully");
-    } catch (error) {
-      console.error("Error during reconnect:", error);
-      alert("Failed to reconnect. Please try again.");
-    }
-  }, [connectionTimeouts, setRemoteParticipants]);
-
   const cleanupConnections = useCallback(() => {
     // Clear all connection timeouts
     connectionTimeouts.forEach((timeout) => clearTimeout(timeout));
@@ -755,7 +723,6 @@ export const useWebRTCConnection = ({
     handleUserJoined,
     handleUserLeft,
     handleExistingParticipants,
-    handleReconnect,
     cleanupConnections,
     peerConnections,
     connectionTimeouts,

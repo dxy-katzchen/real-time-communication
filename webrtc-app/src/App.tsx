@@ -113,7 +113,6 @@ function App() {
     setIsEndingMeeting,
     setUserId,
     setUsername,
-    startMedia,
   });
 
   // Chat functionality
@@ -423,14 +422,6 @@ function App() {
           {unreadMessagesCount > 0 && (
             <span className="unread-badge">{unreadMessagesCount}</span>
           )}
-        </button>
-
-        <button
-          onClick={webRTCHandlers.handleReconnect}
-          className="control-button control-button--reconnect"
-          title="Reconnect all video streams"
-        >
-          🔄 Reconnect
         </button>
 
         <button

@@ -29,7 +29,6 @@ interface UseMeetingOperationsProps {
   setIsEndingMeeting: React.Dispatch<React.SetStateAction<boolean>>;
   setUserId: React.Dispatch<React.SetStateAction<string | null>>;
   setUsername: React.Dispatch<React.SetStateAction<string | null>>;
-  startMedia: () => Promise<void>;
 }
 
 export const useMeetingOperations = ({
@@ -53,7 +52,6 @@ export const useMeetingOperations = ({
   setIsEndingMeeting,
   setUserId,
   setUsername,
-  startMedia,
 }: UseMeetingOperationsProps) => {
   // Handle user creation/login
   const handleUserCreated = useCallback(
@@ -208,85 +206,11 @@ export const useMeetingOperations = ({
     setMainParticipant,
   ]);
 
-  const handleReconnect = useCallback(async () => {
-    console.log("Force reconnecting all peer connections...");
-
-    try {
-      // Clear all connection timeouts
-      connectionTimeouts.forEach((timeout) => clearTimeout(timeout));
-      setConnectionTimeouts(new Map());
-      connectionStartTimes.current.clear();
-
-      // Close all existing peer connections
-      peerConnections.current.forEach((pc, socketId) => {
-        console.log(`Closing peer connection for ${socketId}`);
-        pc.close();
-      });
-      peerConnections.current.clear();
-
-      // Clear remote participants streams
-      setRemoteParticipants((prev) => {
-        const updated = new Map();
-        prev.forEach((participant, socketId) => {
-          updated.set(socketId, {
-            ...participant,
-            stream: undefined,
-            peerConnection: undefined,
-          });
-        });
-        return updated;
-      });
-
-      // Ensure we have fresh local media
-      if (localStreamRef.current) {
-        console.log("Stopping current local stream for reconnect...");
-        localStreamRef.current.getTracks().forEach((track) => track.stop());
-        localStreamRef.current = null;
-      }
-
-      // Get fresh media stream
-      await startMedia();
-
-      // Wait a bit for media to be ready
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Re-emit join to get fresh participant list and trigger new connections
-      if (socketRef.current && userId && meetingId) {
-        console.log("Re-joining room to trigger fresh connections...");
-        socketRef.current.emit("leave", { room: meetingId, userId });
-
-        // Wait a bit before rejoining
-        setTimeout(() => {
-          if (socketRef.current) {
-            socketRef.current.emit("join", { room: meetingId, userId });
-          }
-        }, 500);
-      }
-
-      console.log("Reconnect initiated successfully");
-    } catch (error) {
-      console.error("Error during reconnect:", error);
-      alert("Failed to reconnect. Please try again.");
-    }
-  }, [
-    connectionTimeouts,
-    setConnectionTimeouts,
-    connectionStartTimes,
-    peerConnections,
-    setRemoteParticipants,
-    localStreamRef,
-    startMedia,
-    socketRef,
-    userId,
-    meetingId,
-  ]);
-
   return {
     handleUserCreated,
     handleCreateMeeting,
     handleJoinMeeting,
     handleLeaveMeeting,
     handleEndMeeting,
-    handleReconnect,
   };
 };
