@@ -334,4 +334,6 @@ def on_ice_candidate(data):
 
 if __name__ == '__main__':
     print("Starting Flask-SocketIO server...")
-    socketio.run(app, host='0.0.0.0', port=5002, debug=True)
+    import os
+    debug_mode = os.environ.get('FLASK_ENV') != 'production'
+    socketio.run(app, host='0.0.0.0', port=5002, debug=debug_mode, allow_unsafe_werkzeug=True)
