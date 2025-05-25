@@ -1,14 +1,14 @@
 export const ICE_SERVERS = [
   // Google STUN servers
-  // { urls: "stun:stun.l.google.com:19302" },
-  // { urls: "stun:stun1.l.google.com:19302" },
-  // { urls: "stun:stun2.l.google.com:19302" },
-  // { urls: "stun:stun3.l.google.com:19302" },
-  // { urls: "stun:stun4.l.google.com:19302" },
+  { urls: "stun:stun.l.google.com:19302" },
+  { urls: "stun:stun1.l.google.com:19302" },
+  { urls: "stun:stun2.l.google.com:19302" },
+  { urls: "stun:stun3.l.google.com:19302" },
+  { urls: "stun:stun4.l.google.com:19302" },
 
   // Additional public STUN servers
   { urls: "stun:stun.relay.metered.ca:80" },
-  // { urls: "stun:global.stun.twilio.com:3478" },
+  { urls: "stun:global.stun.twilio.com:3478" },
 
   // Metered TURN servers (multiple protocols and ports)
   {
@@ -33,11 +33,11 @@ export const ICE_SERVERS = [
   },
 
   // Additional TURN servers for better connectivity
-  // {
-  //   urls: "turn:relay1.expressturn.com:3478",
-  //   username: "ef4BIXR2JUZ0JJ2HFPZ",
-  //   credential: "K5BdZjHHmKITB7xP",
-  // },
+  {
+    urls: "turn:relay1.expressturn.com:3478",
+    username: "ef4BIXR2JUZ0JJ2HFPZ",
+    credential: "K5BdZjHHmKITB7xP",
+  },
 ];
 
 export const RTC_CONFIGURATION = {
