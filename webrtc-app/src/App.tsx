@@ -1,6 +1,6 @@
 import { useEffect } from "react";
-import Auth from "./Components/Auth";
-import MeetingLobby from "./Components/MeetingLobby";
+import Auth from "./Components/Auth/Auth";
+import MeetingLobby from "./Components/MeetingLobby/MeetingLobby";
 import Chat from "./Components/Chat";
 import { ParticipantThumbnail } from "./Components/ParticipantThumbnail";
 import { MainVideoComponent } from "./Components/MainVideoComponent";

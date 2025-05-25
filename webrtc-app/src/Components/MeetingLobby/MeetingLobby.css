@@ -1,0 +1,310 @@
+/* MeetingLobby Component Styles */
+.meeting-lobby-container {
+  max-width: 500px; /* Adjusted for a lobby, might be wider than auth */
+  margin: 10vh auto;
+  padding: 40px 32px; /* Slightly less horizontal padding than Auth */
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.06);
+  color: #232333;
+  border: 1px solid #e1e1e6;
+  font-family: "Lato", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+    "Segoe UI Symbol";
+  position: relative;
+  overflow: hidden; /* To contain the ::before pseudo-element */
+}
+
+.meeting-lobby-container::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 6px; /* Blue accent bar at the top */
+  background-color: #2d8cff;
+  border-top-left-radius: 8px; /* Match container's border radius */
+  border-top-right-radius: 8px; /* Match container's border radius */
+}
+
+.meeting-lobby-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 28px; /* Consistent spacing */
+  padding-top: 10px; /* Space below the blue bar */
+}
+
+.meeting-lobby-title {
+  margin: 0;
+  font-size: 22px; /* Slightly smaller than Auth title */
+  font-weight: 400; /* Zoom uses lighter font weights for titles */
+  color: #232333;
+}
+
+.meeting-lobby-logout {
+  padding: 8px 16px;
+  background-color: #f8f9fa; /* Light grey, less prominent than primary actions */
+  color: #2d8cff; /* Blue text to tie in with theme */
+  border: 1px solid #d1d5db; /* Light border */
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.meeting-lobby-logout:hover {
+  background-color: #e9ecef;
+  border-color: #adb5bd;
+}
+
+.meeting-lobby-error {
+  background: #fff2f0; /* Light red background for errors */
+  color: #d93025; /* Darker red text for contrast */
+  padding: 12px 16px;
+  border: 1px solid #ffa39e; /* Red border */
+  border-radius: 6px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  text-align: left;
+}
+
+.meeting-lobby-user-info {
+  margin-bottom: 24px;
+  background-color: #f8f9fa; /* Subtle background for this section */
+  padding: 16px;
+  border-radius: 6px;
+  border: 1px solid #e1e1e6;
+}
+
+.meeting-lobby-label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 500;
+  font-size: 14px;
+  color: #374151; /* Darker grey for labels */
+}
+
+.meeting-lobby-user-input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid #d4d4d8;
+  background: #e9ecef; /* Slightly off-white for disabled look */
+  color: #4b5563; /* Greyed out text */
+  font-size: 15px;
+  box-sizing: border-box;
+  cursor: not-allowed;
+}
+
+.meeting-lobby-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 28px 0;
+  color: #6b7280; /* Grey for divider text */
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.meeting-lobby-divider-line {
+  flex: 1;
+  height: 1px;
+  background-color: #e1e1e6; /* Light grey line */
+}
+
+.meeting-lobby-divider-text {
+  padding: 0 12px;
+}
+
+.meeting-lobby-actions {
+  display: flex;
+  flex-direction: column; /* Stack sections vertically */
+  gap: 24px; /* Gap between join and create sections */
+  margin-bottom: 20px;
+}
+
+.meeting-lobby-action-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px; /* Gap between elements within a section */
+}
+
+.meeting-lobby-join-section .meeting-lobby-input-group {
+  display: flex;
+  border-radius: 6px;
+  overflow: hidden; /* To ensure child border-radius works */
+  border: 1px solid #d4d4d8; /* Shared border for the group */
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.meeting-lobby-join-section .meeting-lobby-input-group:focus-within {
+  border-color: #2d8cff;
+  box-shadow: 0 0 0 2px rgba(45, 140, 255, 0.1);
+}
+
+.meeting-lobby-input {
+  flex-grow: 1; /* Allow input to take available space */
+  padding: 12px 14px;
+  border: none; /* Border handled by parent group */
+  background: #ffffff;
+  color: #232333;
+  font-size: 15px;
+  box-sizing: border-box;
+  border-radius: 0; /* Remove individual border-radius if part of a group */
+}
+
+.meeting-lobby-input:focus {
+  outline: none;
+  /* Focus styling handled by the parent group */
+}
+
+/* Specific styling for standalone create input */
+.meeting-lobby-create-input {
+  padding: 12px 14px;
+  border: 1px solid #d4d4d8;
+  border-radius: 6px; /* Standalone input needs its own radius */
+  background: #ffffff;
+  color: #232333;
+  font-size: 15px;
+  box-sizing: border-box;
+  width: 100%; /* Ensure it takes full width in its column */
+}
+
+.meeting-lobby-create-input:focus {
+  outline: none;
+  border-color: #2d8cff; /* Blue border on focus */
+  box-shadow: 0 0 0 2px rgba(45, 140, 255, 0.1); /* Subtle blue glow */
+}
+
+.meeting-lobby-join-section .meeting-lobby-input {
+  border-radius: 6px 0 0 6px; /* Left side rounded */
+  border-right: none; /* Remove right border as button is adjacent */
+}
+
+.meeting-lobby-join-button,
+.meeting-lobby-create-button {
+  padding: 12px 20px;
+  background: #2d8cff; /* Zoom's primary blue */
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  white-space: nowrap; /* Prevent button text from wrapping */
+}
+
+.meeting-lobby-join-button {
+  border-radius: 0 6px 6px 0; /* Right side rounded for the group */
+}
+
+.meeting-lobby-create-button {
+  width: 100%; /* Make create button full width of its column */
+}
+
+.meeting-lobby-join-button:hover,
+.meeting-lobby-create-button:hover {
+  background: #0e71eb; /* Darker blue on hover */
+}
+
+.meeting-lobby-join-button:disabled,
+.meeting-lobby-create-button:disabled {
+  background: #9ca3af; /* Muted grey for disabled state */
+  color: #e5e7eb;
+  cursor: not-allowed;
+}
+
+.meeting-lobby-or {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 0; /* Reduced padding since it's now vertical */
+  font-size: 14px;
+  color: #6b7280;
+  font-weight: 500;
+  position: relative;
+}
+
+.meeting-lobby-or::before,
+.meeting-lobby-or::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background-color: #e1e1e6;
+}
+
+.meeting-lobby-or span {
+  padding: 0 16px;
+}
+
+/* Responsive design adjustments */
+@media (max-width: 768px) {
+  .meeting-lobby-container {
+    margin: 5vh 20px;
+    padding: 32px 24px;
+  }
+
+  .meeting-lobby-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .meeting-lobby-logout {
+    align-self: flex-end; /* Move logout to the right in column layout */
+  }
+
+  /* Actions are already stacked vertically, no changes needed */
+  .meeting-lobby-actions {
+    gap: 20px; /* Slightly reduced gap for mobile */
+  }
+
+  .meeting-lobby-or {
+    padding: 10px 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .meeting-lobby-container {
+    margin: 2vh 16px;
+    padding: 24px 16px;
+  }
+
+  .meeting-lobby-title {
+    font-size: 20px;
+  }
+
+  .meeting-lobby-input,
+  .meeting-lobby-create-input,
+  .meeting-lobby-join-button,
+  .meeting-lobby-create-button,
+  .meeting-lobby-logout {
+    font-size: 14px;
+    padding: 10px 14px; /* Adjust padding for smaller screens */
+  }
+
+  .meeting-lobby-join-section .meeting-lobby-input-group {
+    flex-direction: column; /* Stack input and button in join group */
+  }
+
+  .meeting-lobby-join-section .meeting-lobby-input {
+    border-radius: 6px 6px 0 0; /* Top rounded when stacked */
+    border-bottom: none; /* Remove bottom border */
+    margin-bottom: 0;
+  }
+
+  .meeting-lobby-join-section .meeting-lobby-input:focus {
+    border-color: #d4d4d8; /* Keep consistent border when stacked */
+  }
+
+  .meeting-lobby-join-button {
+    border-radius: 0 0 6px 6px; /* Bottom rounded when stacked */
+    width: 100%; /* Full width button */
+    border-top: 1px solid #d4d4d8; /* Add top border to separate from input */
+  }
+}
