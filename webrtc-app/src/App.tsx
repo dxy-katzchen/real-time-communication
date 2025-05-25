@@ -290,16 +290,21 @@ function App() {
           {/* Remote participants */}
           <div className="remote-participants-container">
             {(() => {
-              const remoteParticipantList = Array.from(remoteParticipants.values());
-              console.log("Rendering remote participants:", remoteParticipantList.map(p => ({
-                userId: p.userId,
-                socketId: p.socketId,
-                hasStream: !!p.stream,
-                streamId: p.stream?.id,
-                videoTracks: p.stream?.getVideoTracks().length || 0,
-                audioTracks: p.stream?.getAudioTracks().length || 0
-              })));
-              
+              const remoteParticipantList = Array.from(
+                remoteParticipants.values()
+              );
+              console.log(
+                "Rendering remote participants:",
+                remoteParticipantList.map((p) => ({
+                  userId: p.userId,
+                  socketId: p.socketId,
+                  hasStream: !!p.stream,
+                  streamId: p.stream?.id,
+                  videoTracks: p.stream?.getVideoTracks().length || 0,
+                  audioTracks: p.stream?.getAudioTracks().length || 0,
+                }))
+              );
+
               return remoteParticipantList.map((participant) => {
                 const info = participants.find(
                   (p) => p.userId === participant.userId

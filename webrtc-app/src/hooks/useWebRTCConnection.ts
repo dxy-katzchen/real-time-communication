@@ -255,13 +255,19 @@ export const useWebRTCConnection = ({
 
         if (event.streams && event.streams[0]) {
           const stream = event.streams[0];
-          
+
           console.log(`Stream details for ${participantSocketId}:`, {
             streamId: stream.id,
             videoTracks: stream.getVideoTracks().length,
             audioTracks: stream.getAudioTracks().length,
             active: stream.active,
-            tracks: stream.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled, readyState: t.readyState }))
+            tracks: stream
+              .getTracks()
+              .map((t) => ({
+                kind: t.kind,
+                enabled: t.enabled,
+                readyState: t.readyState,
+              })),
           });
 
           // Clear connection timeout on successful track reception
@@ -294,11 +300,13 @@ export const useWebRTCConnection = ({
           setRemoteParticipants((prev) => {
             const updated = new Map(prev);
             let participant = updated.get(participantSocketId);
-            
+
             // If participant doesn't exist, create a basic entry
             // This handles race conditions where stream arrives before participant setup
             if (!participant) {
-              console.log(`Creating participant entry for ${participantSocketId} due to incoming stream`);
+              console.log(
+                `Creating participant entry for ${participantSocketId} due to incoming stream`
+              );
               participant = {
                 userId: participantSocketId, // Will be updated later when we get proper user info
                 socketId: participantSocketId,
@@ -311,13 +319,13 @@ export const useWebRTCConnection = ({
               participant.stream = stream;
               updated.set(participantSocketId, participant);
             }
-            
+
             console.log(`Updated stream for ${participantSocketId}`, {
               videoTracks: stream.getVideoTracks().length,
               audioTracks: stream.getAudioTracks().length,
               participantExists: !!participant,
             });
-            
+
             return updated;
           });
         }
@@ -474,10 +482,12 @@ export const useWebRTCConnection = ({
       setRemoteParticipants((prev) => {
         const updated = new Map(prev);
         const existingParticipant = updated.get(data.fromSocket);
-        
+
         if (existingParticipant) {
           // Update existing participant with proper user info and peer connection
-          console.log(`Updating existing participant ${data.fromSocket} with offer data`);
+          console.log(
+            `Updating existing participant ${data.fromSocket} with offer data`
+          );
           existingParticipant.userId = data.fromUserId;
           existingParticipant.peerConnection = pc;
           updated.set(data.fromSocket, existingParticipant);
@@ -489,7 +499,7 @@ export const useWebRTCConnection = ({
             peerConnection: pc,
           });
         }
-        
+
         return updated;
       });
 
@@ -561,10 +571,12 @@ export const useWebRTCConnection = ({
       setRemoteParticipants((prev) => {
         const updated = new Map(prev);
         const existingParticipant = updated.get(data.socketId);
-        
+
         if (existingParticipant) {
           // Merge with existing participant (keep existing stream if present)
-          console.log(`Updating existing participant ${data.socketId} with proper user info`);
+          console.log(
+            `Updating existing participant ${data.socketId} with proper user info`
+          );
           existingParticipant.userId = data.userId;
           existingParticipant.peerConnection = pc;
           updated.set(data.socketId, existingParticipant);
@@ -576,7 +588,7 @@ export const useWebRTCConnection = ({
             peerConnection: pc,
           });
         }
-        
+
         return updated;
       });
 
