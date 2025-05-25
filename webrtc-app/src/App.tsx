@@ -266,13 +266,38 @@ function App() {
 
             {/* Main video */}
             {mainView.isLocal ? (
-              <video
-                ref={localVideo}
-                autoPlay
-                muted
-                playsInline
-                className="main-video"
-              />
+              <div
+                style={{ position: "relative", width: "100%", height: "100%" }}
+              >
+                <video
+                  ref={localVideo}
+                  autoPlay
+                  muted
+                  playsInline
+                  className="main-video"
+                />
+                {/* Video off overlay for local video */}
+                {isVideoOff && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: "100%",
+                      height: "100%",
+                      backgroundColor: "#000",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "white",
+                      fontSize: "48px",
+                      zIndex: 1,
+                    }}
+                  >
+                    📵
+                  </div>
+                )}
+              </div>
             ) : (
               <MainVideoComponent stream={mainView.stream} />
             )}

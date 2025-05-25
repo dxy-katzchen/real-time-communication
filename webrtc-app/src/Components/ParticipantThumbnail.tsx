@@ -256,8 +256,9 @@ export const ParticipantThumbnail: React.FC<{
     };
   }, [stream, isLocal, displayName, userId]);
 
-  // Handle video visibility for local video when toggled off
-  const showVideo = stream && (!isVideoOff || !isLocal);
+  // Handle video visibility - always show video element if stream exists
+  // We'll handle the visual state of disabled video with an overlay
+  const showVideo = !!stream;
 
   return (
     <div
@@ -287,6 +288,28 @@ export const ParticipantThumbnail: React.FC<{
               backgroundColor: "#000",
             }}
           />
+
+          {/* Video off overlay */}
+          {isVideoOff && (
+            <div
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: "100%",
+                backgroundColor: "#000",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "white",
+                fontSize: "24px",
+                zIndex: 1,
+              }}
+            >
+              📵
+            </div>
+          )}
 
           {/* Loading indicator */}
           {(isLoading || (!isPlaying && !hasError)) && (
