@@ -12,6 +12,7 @@ import {
   toggleAudioTrack,
   attachStreamToVideo,
 } from "./utils/mediaUtils";
+import "./App.css";
 
 function App() {
   // User and Meeting state
@@ -108,14 +109,30 @@ function App() {
     // Record connection start time
     connectionStartTimes.current.set(participantSocketId, Date.now());
 
-    // Set up 10-second timeout for connection
+    // Set up 5-second timeout for connection
     const timeout = setTimeout(() => {
+      const pc = peerConnections.current.get(participantSocketId);
+      if (!pc) return;
+      
+      const connectionState = pc.iceConnectionState;
       const startTime = connectionStartTimes.current.get(participantSocketId);
-      if (startTime && Date.now() - startTime >= 5000) {
+      
+      // Only trigger timeout if connection is still not established
+      if (
+        startTime && 
+        Date.now() - startTime >= 5000 &&
+        connectionState !== "connected" &&
+        connectionState !== "completed"
+      ) {
         console.log(
           `Connection timeout for ${participantSocketId}, attempting reconnect...`
         );
         handleConnectionTimeout(participantSocketId);
+      } else {
+        console.log(
+          `Connection timeout fired but connection is ${connectionState}, ignoring`
+        );
+        clearConnectionTimeout(participantSocketId);
       }
     }, 5000);
 
@@ -339,12 +356,18 @@ function App() {
           console.log(
             `Disconnected from ${participantSocketId}, waiting for reconnection...`
           );
+          // Don't immediately clear timeout on disconnected, let it try to reconnect
           break;
 
         case "checking":
           // Reset timeout when connection checking starts
           console.log(`Connection checking for ${participantSocketId}`);
           connectionStartTimes.current.set(participantSocketId, Date.now());
+          break;
+
+        case "new":
+          // Connection is starting
+          console.log(`New connection state for ${participantSocketId}`);
           break;
       }
     };
@@ -366,6 +389,7 @@ function App() {
         }
       } else if (pc.connectionState === "connected") {
         // Clear timeout on successful connection
+        console.log(`Overall connection successful with ${participantSocketId}`);
         clearConnectionTimeout(participantSocketId);
       }
     };
@@ -404,18 +428,28 @@ function App() {
     connectionStartTimes.current.delete(participantSocketId);
   };
 
-  // Handle connection timeout (10+ seconds of connecting)
+  // Handle connection timeout (5+ seconds of connecting)
   const handleConnectionTimeout = async (participantSocketId: string) => {
     console.log(`Handling connection timeout for ${participantSocketId}`);
 
     const pc = peerConnections.current.get(participantSocketId);
-    if (!pc) return;
+    if (!pc) {
+      console.log(`No peer connection found for ${participantSocketId}, skipping timeout handling`);
+      return;
+    }
 
     // Check current connection state
     const connectionState = pc.iceConnectionState;
     console.log(`Connection state during timeout: ${connectionState}`);
 
-    // Only proceed if still connecting/checking
+    // Only proceed if connection is not already successful
+    if (connectionState === "connected" || connectionState === "completed") {
+      console.log(`Connection already successful (${connectionState}), clearing timeout`);
+      clearConnectionTimeout(participantSocketId);
+      return;
+    }
+
+    // Only proceed if still connecting/checking or failed
     if (connectionState === "checking" || connectionState === "new") {
       console.log(
         `Connection stuck in ${connectionState} state, forcing reconnect...`
@@ -444,22 +478,30 @@ function App() {
     // Clear any existing timeout
     clearConnectionTimeout(participantSocketId);
 
+    // Get participant info BEFORE closing connection
+    const participant = remoteParticipants.get(participantSocketId);
+    if (!participant) {
+      console.log(`No participant found for ${participantSocketId}, cannot recreate`);
+      return;
+    }
+
     // Close and remove old connection
     const oldPc = peerConnections.current.get(participantSocketId);
     if (oldPc) {
+      console.log(`Closing old peer connection for ${participantSocketId}`);
       oldPc.close();
       peerConnections.current.delete(participantSocketId);
     }
 
-    // Get participant info
-    const participant = remoteParticipants.get(participantSocketId);
-    if (!participant) {
-      console.log(`No participant found for ${participantSocketId}`);
-      return;
-    }
-
     // Wait a bit before recreating
     await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    // Double-check participant still exists after wait
+    const stillExists = remoteParticipants.get(participantSocketId);
+    if (!stillExists) {
+      console.log(`Participant ${participantSocketId} no longer exists, aborting recreation`);
+      return;
+    }
 
     // Create new connection
     const pc = createPeerConnection(participantSocketId, true);
@@ -472,18 +514,28 @@ function App() {
         existingParticipant.peerConnection = pc;
         existingParticipant.stream = undefined; // Reset stream
         updated.set(participantSocketId, existingParticipant);
+        console.log(`Updated participant ${participantSocketId} with new peer connection`);
+      } else {
+        console.log(`Participant ${participantSocketId} not found during update, aborting`);
       }
       return updated;
     });
 
     // Wait a bit then create offer
     setTimeout(async () => {
+      // Final check that participant and connection still exist
+      const finalCheck = peerConnections.current.get(participantSocketId);
+      if (!finalCheck) {
+        console.log(`Peer connection for ${participantSocketId} no longer exists, aborting offer`);
+        return;
+      }
+
       try {
-        const offer = await pc.createOffer({
+        const offer = await finalCheck.createOffer({
           offerToReceiveAudio: true,
           offerToReceiveVideo: true,
         });
-        await pc.setLocalDescription(offer);
+        await finalCheck.setLocalDescription(offer);
 
         socketRef.current?.emit("offer", {
           offer,
@@ -947,21 +999,24 @@ function App() {
     }
 
     // ENHANCED: Cleanup function for component unmount or when leaving room
+    // Capture ref values at effect creation time
+    const currentLocalStream = localStreamRef.current;
+    const currentVideoEl = localVideo.current;
+    
     return () => {
-      if (localStreamRef.current) {
+      if (currentLocalStream) {
         console.log("Cleanup: Stopping all media tracks...");
-        localStreamRef.current.getTracks().forEach((track) => {
+        currentLocalStream.getTracks().forEach((track) => {
           console.log(`Cleanup: Stopping ${track.kind} track`);
           track.stop();
         });
         localStreamRef.current = null;
       }
 
-      const videoEl = localVideo.current;
-      if (videoEl) {
+      if (currentVideoEl) {
         console.log("Cleanup: Clearing local video element...");
-        videoEl.srcObject = null;
-        videoEl.pause();
+        currentVideoEl.srcObject = null;
+        currentVideoEl.pause();
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1282,17 +1337,14 @@ function App() {
     : participants.find((p) => p.userId === mainView.userId);
 
   return (
-    <div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
+    <div className="app-container">
       {/* Status bar */}
       <div
-        style={{
-          padding: "10px",
-          backgroundColor:
-            connectionStatus === "Connected" ? "#d4edda" : "#f8d7da",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
+        className={`status-bar ${
+          connectionStatus === "Connected"
+            ? "status-bar--connected"
+            : "status-bar--disconnected"
+        }`}
       >
         <span>
           Meeting ID: {meetingId} {isHost && "(Host)"}
@@ -1301,46 +1353,12 @@ function App() {
       </div>
 
       {/* Main content area */}
-      <div
-        style={{
-          display: "flex",
-          flex: 1,
-          height: "calc(100vh - 130px)",
-          overflow: "hidden",
-        }}
-      >
+      <div className="main-content">
         {/* Main video display */}
-        <div
-          style={{
-            flex: 1,
-            padding: "20px",
-            display: "flex",
-            flexDirection: "column",
-            position: "relative",
-          }}
-        >
-          <div
-            style={{
-              flex: 1,
-              backgroundColor: "#000",
-              borderRadius: "8px",
-              position: "relative",
-              overflow: "hidden",
-            }}
-          >
+        <div className="main-video-container">
+          <div className="main-video-wrapper">
             {/* Main participant name */}
-            <div
-              style={{
-                position: "absolute",
-                bottom: "20px",
-                left: "20px",
-                backgroundColor: "rgba(0,0,0,0.5)",
-                color: "white",
-                padding: "5px 10px",
-                borderRadius: "4px",
-                zIndex: 2,
-              }}
-            >
+            <div className="main-participant-name">
               {mainView.isLocal
                 ? `You (${username})`
                 : mainParticipantInfo?.displayName || "Unknown"}{" "}
@@ -1354,12 +1372,7 @@ function App() {
                 autoPlay
                 muted
                 playsInline
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                  transform: "scaleX(-1)", // Mirror local video
-                }}
+                className="main-video"
               />
             ) : (
               <MainVideoComponent stream={mainView.stream} />
@@ -1368,28 +1381,13 @@ function App() {
         </div>
 
         {/* Participant sidebar */}
-        <div
-          style={{
-            width: "220px",
-            backgroundColor: "#f8f9fa",
-            overflowY: "auto",
-            display: "flex",
-            flexDirection: "column",
-          }}
-        >
-          <div
-            style={{
-              padding: "10px",
-              borderBottom: "1px solid #dee2e6",
-            }}
-          >
-            <h5 style={{ margin: "0 0 10px 0" }}>
-              Participants ({participants.length})
-            </h5>
+        <div className="sidebar">
+          <div className="sidebar-header">
+            <h5>Participants ({participants.length})</h5>
           </div>
 
           {/* Local user thumbnail */}
-          <div style={{ padding: "10px" }}>
+          <div className="local-participant-container">
             <ParticipantThumbnail
               isLocal={true}
               stream={localStreamRef.current}
@@ -1404,7 +1402,7 @@ function App() {
           </div>
 
           {/* Remote participants */}
-          <div style={{ padding: "0 10px" }}>
+          <div className="remote-participants-container">
             {Array.from(remoteParticipants.values()).map((participant) => {
               const info = participants.find(
                 (p) => p.userId === participant.userId
@@ -1429,27 +1427,12 @@ function App() {
       </div>
 
       {/* Controls */}
-      <div
-        style={{
-          padding: "15px",
-          backgroundColor: "#343a40",
-          display: "flex",
-          justifyContent: "center",
-          gap: "15px",
-        }}
-      >
+      <div className="controls">
         <button
           onClick={toggleAudio}
-          style={{
-            padding: "10px",
-            borderRadius: "50%",
-            border: "none",
-            width: "50px",
-            height: "50px",
-            backgroundColor: isMuted ? "#dc3545" : "#6c757d",
-            color: "white",
-            cursor: "pointer",
-          }}
+          className={`control-button control-button--circular control-button--mute ${
+            isMuted ? "muted" : ""
+          }`}
           title={isMuted ? "Unmute" : "Mute"}
         >
           {isMuted ? "🔇" : "🎤"}
@@ -1457,16 +1440,9 @@ function App() {
 
         <button
           onClick={toggleVideo}
-          style={{
-            padding: "10px",
-            borderRadius: "50%",
-            border: "none",
-            width: "50px",
-            height: "50px",
-            backgroundColor: isVideoOff ? "#dc3545" : "#6c757d",
-            color: "white",
-            cursor: "pointer",
-          }}
+          className={`control-button control-button--circular control-button--video ${
+            isVideoOff ? "video-off" : ""
+          }`}
           title={isVideoOff ? "Start Video" : "Stop Video"}
         >
           {isVideoOff ? "📵" : "📹"}
@@ -1474,15 +1450,7 @@ function App() {
 
         <button
           onClick={handleReconnect}
-          style={{
-            padding: "10px 15px",
-            backgroundColor: "#007bff",
-            color: "white",
-            border: "none",
-            borderRadius: "4px",
-            cursor: "pointer",
-            fontWeight: "bold",
-          }}
+          className="control-button control-button--reconnect"
           title="Reconnect all video streams"
         >
           🔄 Reconnect
@@ -1490,15 +1458,7 @@ function App() {
 
         <button
           onClick={handleLeaveMeeting}
-          style={{
-            padding: "10px 20px",
-            backgroundColor: "#dc3545",
-            color: "white",
-            border: "none",
-            borderRadius: "4px",
-            cursor: "pointer",
-            fontWeight: "bold",
-          }}
+          className="control-button control-button--leave"
         >
           {isHost ? "End Meeting" : "Leave"}
         </button>
