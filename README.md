@@ -1,4 +1,4 @@
-# WebRTC Video Chat Architecture
+# WebRTC Video Chat Application
 
 ## System Overview
 
@@ -11,7 +11,7 @@ flowchart TD
     Database["💾 MongoDB"]
 
     %% Application Flow
-    subgraph "User Journey"
+    subgraph "User"
         Auth["🔑 Authentication"]
         Create["📝 Create Meeting"]
         Join["🚪 Join Meeting"]

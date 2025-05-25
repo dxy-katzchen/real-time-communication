@@ -121,33 +121,3 @@ export const getSocketURL = () => {
   // In production, use environment variable or current origin
   return import.meta.env.VITE_SOCKET_URL || window.location.origin;
 };
-
-// Export types for better TypeScript support
-export interface User {
-  _id: string;
-  username: string;
-  displayName: string;
-  createdAt: string;
-}
-
-export interface Meeting {
-  meetingId: string;
-  name: string;
-  hostId: string;
-  active: boolean;
-  createdAt: string;
-}
-
-export interface Participant {
-  userId: string;
-  username: string;
-  displayName: string;
-  isHost: boolean;
-  joinedAt: string;
-}
-
-export interface APIResponse<T = any> {
-  success?: boolean;
-  error?: string;
-  data?: T;
-}

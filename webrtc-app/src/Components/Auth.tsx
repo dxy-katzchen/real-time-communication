@@ -25,7 +25,7 @@ const Auth: React.FC<AuthProps> = ({ onUserCreated }) => {
       try {
         const userData = await userAPI.getUser(username);
         onUserCreated(userData._id, userData.username);
-      } catch (getUserError) {
+      } catch {
         // If user doesn't exist, create new user
         const userData = await userAPI.createUser({ username });
         onUserCreated(userData.userId, userData.username);

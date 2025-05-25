@@ -5,20 +5,27 @@ import MeetingLobby from "./Components/MeetingLobby";
 import { ParticipantThumbnail } from "./Components/ParticipantThumbnail";
 import { MainVideoComponent } from "./Components/MainVideoComponent";
 import { meetingAPI, getSocketURL } from "./Service/api";
-
-interface Participant {
-  userId: string;
-  socketId: string;
-  stream?: MediaStream;
-  peerConnection?: RTCPeerConnection;
-}
+import type { Participant } from "./types";
+import { SOCKET_CONFIG } from "./constants/webrtc";
+import {
+  startMediaStream,
+  toggleAudioTrack,
+  attachStreamToVideo,
+} from "./utils/mediaUtils";
 
 function App() {
   // User and Meeting state
   const [userId, setUserId] = useState<string | null>(null);
   const [username, setUsername] = useState<string | null>(null);
   const [meetingId, setMeetingId] = useState<string | null>(null);
-  const [participants, setParticipants] = useState<any[]>([]);
+  const [participants, setParticipants] = useState<
+    Array<{
+      userId: string;
+      username?: string;
+      displayName?: string;
+      isHost?: boolean;
+    }>
+  >([]);
   const [isHost, setIsHost] = useState(false);
 
   // Multi-participant state
@@ -863,12 +870,7 @@ function App() {
 
   // Socket setup using API service for URL
   useEffect(() => {
-    const newSocket = io(getSocketURL(), {
-      transports: ["websocket", "polling"],
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
-      timeout: 10000,
-    });
+    const newSocket = io(getSocketURL(), SOCKET_CONFIG);
 
     newSocket.on("connect", () => {
       console.log("Connected to Socket.IO server");
@@ -962,6 +964,7 @@ function App() {
         videoEl.pause();
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inRoom]);
 
   // Join room when inRoom changes
@@ -1092,18 +1095,7 @@ function App() {
 
   // Fixed toggle audio function
   const toggleAudio = () => {
-    if (localStreamRef.current) {
-      const audioTracks = localStreamRef.current.getAudioTracks();
-      const newMutedState = !isMuted; // Use the React state as the source of truth
-
-      audioTracks.forEach((track) => {
-        track.enabled = !newMutedState; // Set track.enabled to opposite of muted state
-      });
-
-      setIsMuted(newMutedState);
-
-      console.log(`Audio ${newMutedState ? "muted" : "unmuted"}`);
-    }
+    toggleAudioTrack(localStreamRef, isMuted, setIsMuted);
   };
 
   // Enhanced startMedia function with initial audio state
@@ -1115,22 +1107,7 @@ function App() {
       }
 
       console.log("Requesting access to local media");
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          frameRate: { ideal: 30 },
-        },
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-          // Add these enhanced audio settings
-          sampleRate: 48000,
-          sampleSize: 16,
-          channelCount: 1, // Use mono to reduce bandwidth and noise
-        },
-      });
+      const stream = await startMediaStream();
 
       console.log(
         "Local media obtained:",
@@ -1146,62 +1123,7 @@ function App() {
       localStreamRef.current = stream;
 
       if (localVideo.current) {
-        localVideo.current.srcObject = stream;
-
-        // Add event listeners for better debugging
-        localVideo.current.onloadedmetadata = () => {
-          console.log("Video metadata loaded");
-        };
-
-        localVideo.current.oncanplay = () => {
-          console.log("Video can play");
-        };
-
-        localVideo.current.onerror = (error) => {
-          console.error("Video element error:", error);
-        };
-
-        try {
-          // Set video properties before playing - ENSURE MUTED IS TRUE
-          localVideo.current.muted = true; // This is critical!
-          localVideo.current.playsInline = true;
-          localVideo.current.autoplay = true;
-          localVideo.current.volume = 0; // Extra safety
-
-          await localVideo.current.play();
-          console.log("Local video playing");
-        } catch (playError) {
-          console.warn("Could not autoplay local video:", playError);
-
-          // Fallback: try to play after user interaction
-          const playVideoOnInteraction = async () => {
-            try {
-              if (localVideo.current) {
-                await localVideo.current.play();
-                console.log("Video started after user interaction");
-                // Remove event listeners after successful play
-                document.removeEventListener("click", playVideoOnInteraction);
-                document.removeEventListener(
-                  "touchstart",
-                  playVideoOnInteraction
-                );
-              }
-            } catch (interactionError) {
-              console.error(
-                "Failed to play video after interaction:",
-                interactionError
-              );
-            }
-          };
-
-          // Wait for user interaction
-          document.addEventListener("click", playVideoOnInteraction, {
-            once: true,
-          });
-          document.addEventListener("touchstart", playVideoOnInteraction, {
-            once: true,
-          });
-        }
+        attachStreamToVideo(stream, localVideo);
       }
 
       return stream;
