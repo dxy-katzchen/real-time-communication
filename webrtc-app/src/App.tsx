@@ -959,6 +959,10 @@ function App() {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
+          // Add these enhanced audio settings
+          sampleRate: 48000,
+          sampleSize: 16,
+          channelCount: 1, // Use mono to reduce bandwidth and noise
         },
       });
 
