@@ -27,6 +27,8 @@ interface UseMeetingOperationsProps {
   setIsMuted: React.Dispatch<React.SetStateAction<boolean>>;
   setIsVideoOff: React.Dispatch<React.SetStateAction<boolean>>;
   setIsEndingMeeting: React.Dispatch<React.SetStateAction<boolean>>;
+  setUserId: React.Dispatch<React.SetStateAction<string | null>>;
+  setUsername: React.Dispatch<React.SetStateAction<string | null>>;
   startMedia: () => Promise<void>;
 }
 
@@ -49,8 +51,53 @@ export const useMeetingOperations = ({
   setIsMuted,
   setIsVideoOff,
   setIsEndingMeeting,
+  setUserId,
+  setUsername,
   startMedia,
 }: UseMeetingOperationsProps) => {
+  // Handle user creation/login
+  const handleUserCreated = useCallback(
+    (userId: string, username: string) => {
+      setUserId(userId);
+      setUsername(username);
+
+      const storedMeetingId = localStorage.getItem("lastMeetingId");
+      if (storedMeetingId) {
+        setMeetingId(storedMeetingId);
+      }
+    },
+    [setUserId, setUsername, setMeetingId]
+  );
+
+  // Handle meeting creation
+  const handleCreateMeeting = useCallback(
+    (newMeetingId: string) => {
+      setMeetingId(newMeetingId);
+      setInRoom(true);
+      setIsHost(true);
+      localStorage.setItem("lastMeetingId", newMeetingId);
+    },
+    [setMeetingId, setInRoom, setIsHost]
+  );
+
+  // Handle joining a meeting
+  const handleJoinMeeting = useCallback(
+    async (meetingIdToJoin: string) => {
+      setMeetingId(meetingIdToJoin);
+      setInRoom(true);
+
+      // Check if user is host using API service
+      try {
+        const data = await meetingAPI.isHost(meetingIdToJoin, userId!);
+        setIsHost(data.isHost);
+      } catch (err) {
+        console.error("Error checking host status:", err);
+      }
+
+      localStorage.setItem("lastMeetingId", meetingIdToJoin);
+    },
+    [setMeetingId, setInRoom, setIsHost, userId]
+  );
   const handleEndMeeting = useCallback(async () => {
     if (!meetingId || !userId || !isHost) return;
 
@@ -235,6 +282,9 @@ export const useMeetingOperations = ({
   ]);
 
   return {
+    handleUserCreated,
+    handleCreateMeeting,
+    handleJoinMeeting,
     handleLeaveMeeting,
     handleEndMeeting,
     handleReconnect,
