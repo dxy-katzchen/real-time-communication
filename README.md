@@ -1,82 +1,60 @@
 # WebRTC Video Chat Application
 
-# Live Demo
+A full-featured real-time video conferencing application built with React 19, TypeScript, and WebRTC. This application provides seamless peer-to-peer video communication with advanced features like screen sharing, real-time chat, and robust connection management.
 
-This is a small meeting app implemented Real-time video communication using webRTC and socker-io.
+## 🚀 Live Demo
 
-Currently this application is deployed on AWS EC2 with Github Action for CI/CD pipeline.
+View the live demo at [https://real-time-chat.com](https://real-time-chat.com)
 
-View the demo [here](https://real-time-chat.com)
+**Key Features:**
 
-## System Overview
+- ✅ Real-time video and audio communication
+- ✅ Screen sharing with proper mirroring handling
+- ✅ Real-time text chat with unread message notifications
+- ✅ Meeting management (create, join, leave, end)
+- ✅ Audio/video controls (mute/unmute, camera on/off)
+- ✅ Participant thumbnails with click-to-focus
+- ✅ Connection management with automatic retry
+- ✅ Responsive design for desktop and mobile
+
+## 🏗️ Architecture Overview
+
+This application uses a modern, scalable architecture with hook-based React components and WebRTC for peer-to-peer communication.
 
 ```mermaid
 flowchart TD
-    %% Main Components
-    User["👤 User"]
-    Browser["🌐 Browser"]
-    Server["⚙️ Socket.IO Server"]
-    Database["💾 MongoDB"]
-
-    %% Application Flow
-    subgraph "User"
-        Auth["🔑 Authentication"]
-        Create["📝 Create Meeting"]
-        Join["🚪 Join Meeting"]
-        Connect["🔌 Establish WebRTC"]
-        Stream["📹 Stream Media"]
-        End["❌ End Meeting"]
+    subgraph "Frontend (React + TypeScript)"
+        A[🔑 Authentication] --> B[📝 Meeting Lobby]
+        B --> C[🎥 Video Room]
+        C --> D[💬 Chat System]
+        C --> E[📺 Screen Sharing]
+        C --> F[🎛️ Media Controls]
     end
 
-    subgraph "WebRTC Flow"
-        LocalMedia["📹 Get Local Media"]
-        Signaling["📡 Signaling"]
-        PeerConn["🔄 Create Peer Connection"]
-        ICE["❄️ ICE Candidates Exchange"]
-        P2P["👥 P2P Connection"]
+    subgraph "Backend Services"
+        G[⚙️ Flask Server] --> H[💾 MongoDB]
+        G --> I[📡 Socket.IO Events]
     end
 
-    subgraph "Media Exchange"
-        direction LR
-        UserA["👤 User A"] <--"Direct P2P"--> UserB["👤 User B"]
-        UserA <--"Direct P2P"--> UserC["👤 User C"]
-        UserB <--"Direct P2P"--> UserC
+    subgraph "P2P Communication"
+        J[🔄 WebRTC Signaling] --> K[👥 Direct Media Exchange]
+        K --> L[📹 Video Streams]
+        K --> M[🎵 Audio Streams]
+        K --> N[📺 Screen Streams]
     end
 
-    %% Main Flow
-    User --> Auth
-    Auth -- "API Call" --> Database
-    Auth --> Create
-    Auth --> Join
-    Create -- "Generate meetingId" --> Database
-    Join -- "Validate meetingId" --> Database
-    Create --> Connect
-    Join --> Connect
-    Connect --> Stream
-    Stream --> End
-    End -- "Cleanup" --> Database
+    A -.-> G
+    B -.-> G
+    C --> J
+    I -.-> J
 
-    %% WebRTC Detail Flow
-    Connect --> LocalMedia
-    LocalMedia --> Signaling
-    Signaling -- "Socket.IO" --> Server
-    Server -- "Relay" --> Signaling
-    Signaling --> PeerConn
-    PeerConn --> ICE
-    ICE -- "Socket.IO" --> Server
-    ICE --> P2P
-    P2P --> Stream
+    classDef frontend fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    classDef backend fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef p2p fill:#fff3e0,stroke:#f57c00,stroke-width:2px
 
-    %% Styles
-    classDef browser fill:#e1f5fe,stroke:#0277bd,stroke-width:2px
-    classDef server fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    classDef db fill:#ffebee,stroke:#c62828,stroke-width:2px
-    classDef media fill:#fff9c4,stroke:#fbc02d,stroke-width:2px
-
-    class Browser browser
-    class Server server
-    class Database db
-    class Stream,LocalMedia,P2P media
+    class A,B,C,D,E,F frontend
+    class G,H,I backend
+    class J,K,L,M,N p2p
 ```
 
 ## WebRTC Signaling Flow
@@ -223,361 +201,338 @@ src/
 }
 ```
 
-## Technical Trade-offs & Design Decisions
+## 🛠️ Technology Stack
 
-### 1. **Mesh vs SFU Architecture**
+### Frontend
 
-**Decision**: Chose Mesh (P2P) topology over SFU (Selective Forwarding Unit)
+- **React 19** - Latest React with concurrent features
+- **TypeScript 5.8** - Type-safe development
+- **Vite 6.3** - Fast build tool and dev server
+- **WebRTC API** - Peer-to-peer media communication
+- **Socket.IO Client 4.8** - Real-time event communication
 
-**Trade-offs**:
+### Backend
 
-- ✅ **Pros**: Lower server costs, reduced latency, better privacy (no media through server)
-- ❌ **Cons**: Limited scalability (~4-6 participants max), higher client bandwidth usage
-- **Reasoning**: For small team meetings, mesh topology provides better performance and lower infrastructure costs
+- **Flask** - Python web framework
+- **Socket.IO** - Real-time bidirectional communication
+- **MongoDB** - Document database for user and meeting data
+- **Flask-SocketIO** - WebSocket support for Flask
 
-### 2. **Socket.IO vs Native WebSockets**
+### Infrastructure
 
-**Decision**: Used Socket.IO for signaling
+- **AWS EC2** - Cloud hosting
+- **GitHub Actions** - CI/CD pipeline
+- **STUN/TURN Servers** - NAT traversal for WebRTC
+- **Nginx** - Reverse proxy and load balancing
 
-**Trade-offs**:
+## 📁 Project Structure
 
-- ✅ **Pros**: Auto-reconnection, fallback transports, event-based API, room management
-- ❌ **Cons**: Larger bundle size, additional abstraction layer
-- **Reasoning**: Socket.IO's reliability features are crucial for signaling in unstable networks
+```
+/Real-time/
+├── README.md                 # Project documentation
+├── nginx.conf               # Nginx configuration
+├── Flask-Backend/           # Python backend server
+│   ├── server.py           # Main Flask application
+│   ├── requirements.txt    # Python dependencies
+│   └── wsgi.py            # WSGI entry point
+└── webrtc-app/             # React frontend application
+    ├── package.json        # Node.js dependencies
+    ├── vite.config.ts     # Vite configuration
+    ├── tsconfig.json      # TypeScript configuration
+    └── src/
+        ├── App.tsx         # Main application component
+        ├── main.tsx        # Application entry point
+        ├── Components/     # React UI components
+        │   ├── Auth/           # Authentication components
+        │   ├── Chat/           # Chat interface
+        │   ├── MeetingLobby/   # Meeting lobby UI
+        │   ├── MainVideoComponent.tsx    # Main video display
+        │   └── ParticipantThumbnail.tsx  # Participant thumbnails
+        ├── hooks/          # Custom React hooks
+        │   ├── useAppState.ts          # Centralized state management
+        │   ├── useWebRTCConnection.ts  # WebRTC peer connections
+        │   ├── useMediaControls.ts     # Media stream controls
+        │   ├── useChat.ts              # Chat functionality
+        │   ├── useSocketEvents.ts      # Socket event handlers
+        │   ├── useMeetingOperations.ts # Meeting lifecycle
+        │   ├── useMediaStatusSync.ts   # Media status sync
+        │   ├── useSocketSetup.ts       # Socket connection
+        │   ├── useConnectionManagement.ts  # Connection management
+        │   └── useEffects.ts           # Side effects coordination
+        ├── Service/        # API service layer
+        │   └── api.ts      # REST API client
+        ├── types/          # TypeScript type definitions
+        │   └── index.ts    # Application types
+        ├── utils/          # Utility functions
+        │   ├── mediaUtils.ts   # Media stream utilities
+        │   └── webrtcUtils.ts  # WebRTC helper functions
+        └── constants/      # Application constants
+            └── webrtc.ts   # WebRTC configuration
+```
 
-### 3. **React Hooks vs Redux**
+## 🔧 Hook-Based Architecture
 
-**Decision**: Custom hooks with useState/useRef over Redux
+The application uses a sophisticated hook-based architecture that separates concerns and improves maintainability:
 
-**Trade-offs**:
+### Core Hooks
 
-- ✅ **Pros**: Simpler state management, better performance, less boilerplate
-- ❌ **Cons**: No time-travel debugging, harder to share state across distant components
-- **Reasoning**: WebRTC state is mostly local and ephemeral, doesn't benefit from Redux complexity
+#### `useAppState.ts` - Centralized State Management
 
-### 4. **TypeScript vs JavaScript**
+```typescript
+// Single source of truth for all application state
+const {
+  userId,
+  setUserId,
+  username,
+  setUsername,
+  meetingId,
+  setMeetingId,
+  participants,
+  setParticipants,
+  // ... all state variables centralized
+} = useAppState();
+```
 
-**Decision**: Full TypeScript implementation
+#### `useWebRTCConnection.ts` - WebRTC Management
 
-**Trade-offs**:
+- Creates and manages peer connections
+- Handles ICE candidate exchange
+- Implements connection timeout and retry logic
+- Manages peer connection lifecycle
 
-- ✅ **Pros**: Better IDE support, compile-time error catching, self-documenting APIs
-- ❌ **Cons**: Steeper learning curve, longer initial development time
-- **Reasoning**: WebRTC APIs are complex and type safety prevents runtime errors
+#### `useMediaControls.ts` - Media Stream Controls
 
-## Major Technical Challenges & Solutions
+- Audio/video toggle functionality
+- **Screen sharing with proper mirroring handling**
+- Camera switching and media device management
+- Stream replacement for screen sharing
 
-### 1. **Race Conditions in WebRTC Signaling**
+#### `useChat.ts` - Real-time Chat
 
-**Challenge**: Multiple simultaneous offer/answer exchanges causing connection failures
+- Send and receive chat messages
+- Unread message notifications
+- Message history management
+- Socket-based real-time messaging
 
-**Problem Symptoms**:
+#### `useSocketEvents.ts` - Event Management
+
+- Socket.IO event listener setup
+- Proper event cleanup to prevent memory leaks
+- Event handler registration and deregistration
+
+#### `useMeetingOperations.ts` - Meeting Lifecycle
+
+- Join/leave meeting operations
+- Meeting creation and validation
+- Participant management
+- Meeting cleanup on exit
+
+### Key Features Implementation
+
+#### Screen Sharing with Mirroring Fix
+
+The application correctly handles video mirroring for different stream types:
+
+```typescript
+// ParticipantThumbnail.tsx - Conditional mirroring
+transform: isLocal && !isScreenSharing ? "scaleX(-1)" : "none"
+
+// MainVideoComponent.tsx - Screen sharing detection
+style={{ transform: isScreenSharing ? "none" : "scaleX(-1)" }}
+```
+
+**Problem Solved**: Screen sharing content was appearing mirrored due to CSS transforms intended for camera video. The fix conditionally applies mirroring only for camera streams, not screen shares.
+
+#### Real-time Chat System
+
+- Text messaging during video calls
+- Unread message badges
+- Persistent chat history during session
+- Socket.IO based real-time delivery
+
+#### Connection Management
+
+- Automatic connection retry with exponential backoff
+- Connection timeout handling (10-second default)
+- Graceful fallback for failed connections
+- Comprehensive connection state monitoring
+
+## ⚡ Performance Optimizations
+
+### React Performance
+
+- **Memoized callbacks** prevent unnecessary re-renders
+- **useRef** for values that don't trigger renders
+- **Centralized state** reduces prop drilling
+- **Event cleanup** prevents memory leaks
+
+### WebRTC Optimizations
+
+- **Connection pooling** reuses peer connections
+- **ICE candidate buffering** handles timing issues
+- **Automatic retry** with exponential backoff
+- **Connection timeout** management (10s default)
+
+### Real-time Features
+
+- **Efficient Socket.IO** event management
+- **Media stream optimization** for screen sharing
+- **Chat message batching** for better performance
+- **Participant state synchronization**
+
+## 🔧 Advanced Features
+
+### Screen Sharing Implementation
+
+```typescript
+// Conditional mirroring for different stream types
+const videoStyle = {
+  transform: isScreenSharing ? "none" : "scaleX(-1)",
+};
+```
+
+### Chat System
+
+- Real-time messaging with Socket.IO
+- Unread message notifications
+- Message persistence during session
+- Emoji and text support
+
+### Connection Management
+
+- Automatic reconnection on network issues
+- Connection quality monitoring
+- Graceful degradation for poor connections
+- Comprehensive error handling
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+1. **Camera/Microphone Not Working**
+
+   - Ensure HTTPS is enabled (required for WebRTC)
+   - Check browser permissions for media access
+   - Verify media devices are not in use by other applications
+
+2. **Connection Failures**
+
+   - Check STUN/TURN server configuration
+   - Verify firewall settings allow WebRTC traffic
+   - Ensure both users are on the same meeting ID
+
+3. **Screen Sharing Issues**
+
+   - Update to latest browser version
+   - Check screen sharing permissions
+   - Verify the mirroring fix is applied correctly
+
+4. **Chat Not Working**
+   - Check Socket.IO connection status
+   - Verify meetingId and userId are set
+   - Check console for JavaScript errors
+
+### Debug Mode
+
+Enable debug logging by setting:
 
 ```javascript
-// Race condition when users join simultaneously
-User A creates offer → User B creates offer → Both get confused about remote descriptions
+localStorage.setItem("debug", "webrtc:*");
 ```
 
-**Solution Implemented**:
+## 🧪 Testing
 
-```typescript
-// Connection timeout and retry mechanism
-const CONNECTION_TIMEOUT = 10000; // 10 seconds
+### Manual Testing Checklist
 
-const handleConnectionTimeout = useCallback(
-  async (participantSocketId: string) => {
-    console.log(
-      `Connection timeout for ${participantSocketId}, attempting reconnect`
-    );
+- [ ] User authentication
+- [ ] Meeting creation and joining
+- [ ] Video/audio streaming
+- [ ] Screen sharing functionality
+- [ ] Chat messaging
+- [ ] Media controls (mute/unmute)
+- [ ] Connection handling
+- [ ] Mobile responsiveness
 
-    // Clear existing connection
-    const pc = peerConnections.current.get(participantSocketId);
-    if (pc) {
-      pc.close();
-      peerConnections.current.delete(participantSocketId);
-    }
+### Performance Testing
 
-    // Wait before recreating to avoid immediate retry loops
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+- Test with multiple participants (2-6 users)
+- Monitor CPU and memory usage
+- Check network bandwidth consumption
+- Verify connection stability over time
 
-    // Recreate connection with exponential backoff
-    await recreateConnection(participantSocketId);
-  },
-  []
-);
+## 🔮 Future Enhancements
+
+### Planned Features
+
+- [ ] **Mobile App** - React Native implementation
+- [ ] **Recording** - Session recording and playback
+- [ ] **File Sharing** - Document sharing during meetings
+- [ ] **Virtual Backgrounds** - AI-powered background replacement
+- [ ] **Breakout Rooms** - Split participants into smaller groups
+- [ ] **Meeting Analytics** - Usage statistics and insights
+
+### Technical Improvements
+
+- [ ] **SFU Architecture** - Support for larger meetings (10+ participants)
+- [ ] **Adaptive Bitrate** - Dynamic quality adjustment
+- [ ] **End-to-End Encryption** - Enhanced security
+- [ ] **PWA Support** - Progressive Web App features
+- [ ] **Internationalization** - Multi-language support
+
+## 📝 API Documentation
+
+### REST Endpoints
+
+```
+POST /api/users/register     # User registration
+POST /api/users/login        # User authentication
+POST /api/meetings           # Create meeting
+POST /api/meetings/join      # Join meeting
+DELETE /api/meetings/:id     # End meeting
 ```
 
-**Key Strategies**:
+### Socket.IO Events
 
-- Connection timeouts with automatic retry
-- Exponential backoff for failed connections
-- Proper cleanup of failed peer connections
-- State synchronization between signaling and connection state
-
-### 2. **Memory Leaks in Media Streams**
-
-**Challenge**: MediaStream tracks not being properly cleaned up causing browser resource leaks
-
-**Solution**:
-
-```typescript
-const cleanupMediaTracks = (stream: MediaStream | null) => {
-  if (stream) {
-    stream.getTracks().forEach((track) => {
-      track.stop();
-      stream.removeTrack(track);
-    });
-  }
-};
-
-// Proper cleanup in useEffect
-useEffect(() => {
-  return () => {
-    cleanupMediaTracks(localStreamRef.current);
-    // Clear all video elements
-    if (localVideo.current) {
-      localVideo.current.srcObject = null;
-    }
-  };
-}, []);
+```
+join                    # Join meeting room
+user-joined            # New participant notification
+user-left              # Participant left notification
+offer                  # WebRTC offer
+answer                 # WebRTC answer
+ice-candidate          # ICE candidate exchange
+media-status-changed   # Audio/video/screen sharing status
+chat-message           # Text chat message
+meeting-ended          # Meeting termination
 ```
 
-### 3. **Socket.IO Connection State Management**
+## 🤝 Contributing
 
-**Challenge**: Handling disconnections, reconnections, and duplicate event listeners
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Commit changes: `git commit -m 'Add amazing feature'`
+4. Push to branch: `git push origin feature/amazing-feature`
+5. Open a Pull Request
 
-**Solution**:
+### Development Guidelines
 
-```typescript
-// Robust socket event management
-useEffect(() => {
-  if (!socketRef.current) return;
+- Follow TypeScript best practices
+- Write comprehensive tests
+- Update documentation for new features
+- Ensure backward compatibility
+- Follow the existing code style
 
-  const socket = socketRef.current;
+## 📄 License
 
-  // Register event listeners
-  socket.on("user-joined", onUserJoined);
-  socket.on("user-left", onUserLeft);
-  socket.on("offer", onOffer);
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-  // Critical: Clean up listeners to prevent duplicates
-  return () => {
-    socket.off("user-joined", onUserJoined);
-    socket.off("user-left", onUserLeft);
-    socket.off("offer", onOffer);
-  };
-}, [socketRef, onUserJoined, onUserLeft, onOffer]); // Dependencies ensure fresh handlers
-```
+## 🙋‍♂️ Support
 
-### 4. **ICE Candidate Buffering**
+For questions and support:
 
-**Challenge**: ICE candidates arriving before remote description is set
+- Create an issue on GitHub
+- Check the troubleshooting section
+- Review the API documentation
 
-**Solution**:
+---
 
-```typescript
-// Buffer ICE candidates until peer connection is ready
-const pendingICECandidates = useRef<Map<string, RTCIceCandidate[]>>(new Map());
-
-const handleIceCandidate = useCallback(async (data) => {
-  const pc = peerConnections.current.get(data.fromSocket);
-
-  if (!pc || pc.remoteDescription === null) {
-    // Buffer candidates if peer connection not ready
-    const pending = pendingICECandidates.current.get(data.fromSocket) || [];
-    pending.push(new RTCIceCandidate(data.candidate));
-    pendingICECandidates.current.set(data.fromSocket, pending);
-    return;
-  }
-
-  // Add candidate immediately if ready
-  await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
-}, []);
-```
-
-### 5. **State Synchronization Across Hooks**
-
-**Challenge**: Multiple hooks managing related state leading to inconsistencies
-
-**Original Problem**:
-
-```typescript
-// State scattered across multiple hooks
-const [userId, setUserId] = useState(null); // In App.tsx
-const [meetingId, setMeetingId] = useState(null); // In App.tsx
-const [inRoom, setInRoom] = useState(false); // In App.tsx
-// ... many more state variables
-```
-
-**Solution - Centralized State Management**:
-
-```typescript
-// useAppState.ts - Single source of truth
-export const useAppState = () => {
-  const [userId, setUserId] = useState<string | null>(null);
-  const [username, setUsername] = useState<string | null>(null);
-  const [meetingId, setMeetingId] = useState<string | null>(null);
-  const [participants, setParticipants] = useState<Participant[]>([]);
-  // ... all state in one place
-
-  return {
-    userId,
-    setUserId,
-    username,
-    setUsername,
-    meetingId,
-    setMeetingId,
-    participants,
-    setParticipants,
-    // ... centralized state management
-  };
-};
-```
-
-## Performance Optimizations
-
-### 1. **React Rendering Optimization**
-
-```typescript
-// Memoized callbacks to prevent unnecessary re-renders
-const handleUserJoined = useCallback(
-  (data) => {
-    // Implementation
-  },
-  [dependency1, dependency2]
-);
-
-// Refs for values that don't trigger re-renders
-const peerConnections = useRef<Map<string, RTCPeerConnection>>(new Map());
-const connectionStartTimes = useRef<Map<string, number>>(new Map());
-```
-
-### 2. **WebRTC Connection Pooling**
-
-```typescript
-// Reuse peer connections when possible
-const getOrCreatePeerConnection = useCallback((participantSocketId: string) => {
-  let pc = peerConnections.current.get(participantSocketId);
-
-  if (!pc || pc.connectionState === "closed") {
-    pc = createPeerConnection(participantSocketId);
-    peerConnections.current.set(participantSocketId, pc);
-  }
-
-  return pc;
-}, []);
-```
-
-### 3. **Efficient Event Cleanup**
-
-```typescript
-// Automatic cleanup prevents memory leaks
-const cleanupConnections = useCallback(() => {
-  // Clear all connection timeouts
-  connectionTimeouts.forEach((timeout) => clearTimeout(timeout));
-  setConnectionTimeouts(new Map());
-  connectionStartTimes.current.clear();
-
-  // Close all peer connections
-  peerConnections.current.forEach((pc) => pc.close());
-  peerConnections.current.clear();
-}, [connectionTimeouts]);
-```
-
-## Testing & Debugging Strategies
-
-### 1. **Connection State Monitoring**
-
-```typescript
-// Comprehensive logging for debugging
-const logConnectionState = (participantId: string, pc: RTCPeerConnection) => {
-  console.log(`Connection state for ${participantId}:`, {
-    connectionState: pc.connectionState,
-    iceConnectionState: pc.iceConnectionState,
-    iceGatheringState: pc.iceGatheringState,
-    signalingState: pc.signalingState,
-  });
-};
-```
-
-### 2. **Error Boundary Implementation**
-
-```typescript
-// Graceful error handling
-const handleWebRTCError = (error: Error, context: string) => {
-  console.error(`WebRTC Error in ${context}:`, error);
-
-  // Attempt automatic recovery
-  if (error.name === "InvalidStateError") {
-    // Recreate connection
-    recreateConnection(participantId);
-  }
-};
-```
-
-## Deployment & Infrastructure
-
-### Production Considerations
-
-1. **STUN/TURN Servers**: Essential for NAT traversal in production
-2. **SSL Certificates**: Required for WebRTC getUserMedia() API
-3. **Load Balancing**: Socket.IO sticky sessions for proper signaling
-4. **Error Monitoring**: Comprehensive logging for WebRTC connection issues
-
-### Environment Configuration
-
-```javascript
-// Different configurations for dev/prod
-const STUN_SERVERS = {
-  development: ["stun:stun.l.google.com:19302"],
-  production: [
-    "stun:stun.l.google.com:19302",
-    "turn:your-turn-server.com:3478",
-  ],
-};
-```
-
-## Future Improvements
-
-1. **Scalability**: Implement SFU architecture for larger meetings
-2. **Mobile Support**: Optimize for mobile browsers and responsive design
-3. **Screen Sharing**: Add screen sharing capabilities
-4. **Recording**: Server-side recording functionality
-5. **Chat**: Text chat during meetings
-6. **Network Adaptation**: Dynamic quality adjustment based on network conditions
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js 18+
-- Python 3.9+
-- MongoDB 5.0+
-
-### Installation
-
-```bash
-# Backend setup
-cd Flask-Backend
-pip install -r requirements.txt
-python server.py
-
-# Frontend setup
-cd webrtc-app
-npm install
-npm run dev
-```
-
-### Environment Variables
-
-```bash
-# Backend (.env)
-MONGO_URI=mongodb://localhost:27017/webrtc_app
-FLASK_ENV=development
-
-# Frontend (.env)
-VITE_API_BASE_URL=http://localhost:5000
-VITE_SOCKET_URL=http://localhost:5000
-```
-
-This WebRTC application demonstrates real-world challenges in building peer-to-peer communication systems and provides practical solutions for common issues like race conditions, memory management, and state synchronization in React applications.
+**Built with ❤️ using React 19, TypeScript, and WebRTC**
