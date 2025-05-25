@@ -1,5 +1,13 @@
 # WebRTC Video Chat Application
 
+# Live Demo
+
+This is a small meeting app implemented Real-time video communication using webRTC and socker-io.
+
+Currently this application is deployed on AWS EC2 with Github Action for CI/CD pipeline.
+
+View the demo [here](https://real-time-chat.com)
+
 ## System Overview
 
 ```mermaid
