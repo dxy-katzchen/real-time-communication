@@ -7,6 +7,14 @@ export interface Participant {
   isVideoOff?: boolean;
 }
 
+export interface ChatMessage {
+  id: string;
+  userId: string;
+  username: string;
+  message: string;
+  timestamp: Date;
+}
+
 export interface SocketEvents {
   "user-joined": (data: { userId: string; socketId: string }) => void;
   "user-left": (data: { userId: string; socketId: string }) => void;
@@ -34,6 +42,13 @@ export interface SocketEvents {
     socketId: string;
     isMuted: boolean;
     isVideoOff: boolean;
+  }) => void;
+  "chat-message": (data: {
+    id: string;
+    userId: string;
+    username: string;
+    message: string;
+    timestamp: string;
   }) => void;
 }
 

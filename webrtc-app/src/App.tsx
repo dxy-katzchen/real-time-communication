@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import Auth from "./Components/Auth";
 import MeetingLobby from "./Components/MeetingLobby";
+import Chat from "./Components/Chat";
 import { ParticipantThumbnail } from "./Components/ParticipantThumbnail";
 import { MainVideoComponent } from "./Components/MainVideoComponent";
 import { useAppState } from "./hooks/useAppState";
@@ -11,6 +12,7 @@ import { useSocketSetup } from "./hooks/useSocketSetup";
 import { useSocketEvents } from "./hooks/useSocketEvents";
 import { useEffects } from "./hooks/useEffects";
 import { useMediaStatusSync } from "./hooks/useMediaStatusSync";
+import { useChat } from "./hooks/useChat";
 import "./App.css";
 
 function App() {
@@ -42,6 +44,12 @@ function App() {
     setIsEndingMeeting,
     isCopied,
     setIsCopied,
+    chatMessages,
+    setChatMessages,
+    isChatOpen,
+    setIsChatOpen,
+    unreadMessagesCount,
+    setUnreadMessagesCount,
   } = useAppState();
 
   // Socket setup
@@ -108,6 +116,18 @@ function App() {
     startMedia,
   });
 
+  // Chat functionality
+  const { sendChatMessage, handleChatMessage, clearUnreadMessages } = useChat({
+    socketRef,
+    meetingId,
+    userId,
+    username,
+    chatMessages,
+    setChatMessages,
+    isChatOpen,
+    setUnreadMessagesCount,
+  });
+
   // Socket events
   const { joinRoom } = useSocketEvents({
     socketRef,
@@ -122,6 +142,7 @@ function App() {
     onIceCandidate: webRTCHandlers.handleIceCandidate,
     onLeaveMeeting: handleLeaveMeeting,
     onMediaStatusChanged: handleMediaStatusChanged,
+    onChatMessage: handleChatMessage,
   });
 
   // Effects management
@@ -138,6 +159,15 @@ function App() {
   // Switch main participant view
   const switchToMainView = (participantId: string | null) => {
     setMainParticipant(participantId);
+  };
+
+  // Chat functionality
+  const toggleChat = () => {
+    if (!isChatOpen) {
+      // Opening chat - clear unread messages
+      clearUnreadMessages();
+    }
+    setIsChatOpen(!isChatOpen);
   };
 
   // Ensure local video has stream when it becomes main view
@@ -383,6 +413,19 @@ function App() {
         </button>
 
         <button
+          onClick={toggleChat}
+          className={`control-button control-button--circular control-button--chat ${
+            isChatOpen ? "active" : ""
+          }`}
+          title="Toggle Chat"
+        >
+          💬
+          {unreadMessagesCount > 0 && (
+            <span className="unread-badge">{unreadMessagesCount}</span>
+          )}
+        </button>
+
+        <button
           onClick={webRTCHandlers.handleReconnect}
           className="control-button control-button--reconnect"
           title="Reconnect all video streams"
@@ -397,6 +440,18 @@ function App() {
           {isHost ? "End Meeting" : "Leave"}
         </button>
       </div>
+
+      {/* Chat Component */}
+      {isChatOpen && (
+        <Chat
+          chatMessages={chatMessages}
+          onSendMessage={sendChatMessage}
+          isOpen={isChatOpen}
+          onClose={toggleChat}
+          currentUserId={userId}
+          participantsCount={participants.length}
+        />
+      )}
     </div>
   );
 }

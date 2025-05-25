@@ -350,6 +350,27 @@ def on_media_status_update(data):
             'isVideoOff': is_video_off
         }, to=room, include_self=False)
 
+@socketio.on('send-chat-message')
+def on_send_chat_message(data):
+    room = data.get('room')
+    message_id = data.get('id')
+    user_id = data.get('userId')
+    username = data.get('username')
+    message = data.get('message')
+    timestamp = data.get('timestamp')
+    
+    print(f"Chat message from {username} ({user_id}): {message}")
+    
+    if room and message:
+        # Broadcast the chat message to all participants in the room (including sender)
+        socketio.emit('chat-message', {
+            'id': message_id,
+            'userId': user_id,
+            'username': username,
+            'message': message,
+            'timestamp': timestamp
+        }, to=room)
+
 if __name__ == '__main__':
     print("Starting Flask-SocketIO server...")
     

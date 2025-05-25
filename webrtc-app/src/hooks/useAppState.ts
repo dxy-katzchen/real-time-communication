@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { Socket } from "socket.io-client";
-import type { Participant } from "../types";
+import type { Participant, ChatMessage } from "../types";
 
 export const useAppState = () => {
   // User and Meeting state
@@ -31,6 +31,11 @@ export const useAppState = () => {
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [isEndingMeeting, setIsEndingMeeting] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
+
+  // Chat state
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
 
   // Refs
   const localVideo = useRef<HTMLVideoElement | null>(null);
@@ -76,6 +81,14 @@ export const useAppState = () => {
     setIsEndingMeeting,
     isCopied,
     setIsCopied,
+
+    // Chat state
+    chatMessages,
+    setChatMessages,
+    isChatOpen,
+    setIsChatOpen,
+    unreadMessagesCount,
+    setUnreadMessagesCount,
 
     // Refs
     localVideo,
