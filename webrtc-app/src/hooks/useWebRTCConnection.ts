@@ -261,13 +261,11 @@ export const useWebRTCConnection = ({
             videoTracks: stream.getVideoTracks().length,
             audioTracks: stream.getAudioTracks().length,
             active: stream.active,
-            tracks: stream
-              .getTracks()
-              .map((t) => ({
-                kind: t.kind,
-                enabled: t.enabled,
-                readyState: t.readyState,
-              })),
+            tracks: stream.getTracks().map((t) => ({
+              kind: t.kind,
+              enabled: t.enabled,
+              readyState: t.readyState,
+            })),
           });
 
           // Clear connection timeout on successful track reception
@@ -505,6 +503,52 @@ export const useWebRTCConnection = ({
 
       try {
         await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+
+        // Ensure local stream is available before creating answer
+        if (!localStreamRef.current) {
+          console.error(
+            `No local stream available when handling offer from ${data.fromSocket}`
+          );
+          return;
+        }
+
+        // Check if tracks were added during peer connection creation
+        let senders = pc.getSenders();
+        console.log(
+          `Peer connection for ${data.fromSocket} has ${senders.length} senders before adding tracks`
+        );
+
+        // If no tracks are attached to senders, manually add them
+        const hasTracksAttached = senders.some(
+          (sender) => sender.track !== null
+        );
+        if (!hasTracksAttached && localStreamRef.current) {
+          console.log(
+            `No tracks attached to senders, manually adding tracks for ${data.fromSocket}`
+          );
+          const tracks = localStreamRef.current.getTracks();
+
+          tracks.forEach((track) => {
+            console.log(
+              `Manually adding ${track.kind} track to ${data.fromSocket}`
+            );
+            pc.addTrack(track, localStreamRef.current!);
+          });
+        }
+
+        // Double-check that tracks were added to the peer connection
+        senders = pc.getSenders();
+        console.log(
+          `Peer connection for ${data.fromSocket} has ${senders.length} senders before creating answer`
+        );
+        senders.forEach((sender, index) => {
+          if (sender.track) {
+            console.log(`Sender ${index}: ${sender.track.kind} track`);
+          } else {
+            console.log(`Sender ${index}: no track`);
+          }
+        });
+
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
 
@@ -520,7 +564,13 @@ export const useWebRTCConnection = ({
         console.error("Error handling offer:", error);
       }
     },
-    [createPeerConnection, setRemoteParticipants, socketRef, userId]
+    [
+      createPeerConnection,
+      setRemoteParticipants,
+      socketRef,
+      userId,
+      localStreamRef,
+    ]
   );
 
   const handleAnswer = useCallback(
