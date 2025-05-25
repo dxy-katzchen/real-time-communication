@@ -40,6 +40,8 @@ function App() {
     localStreamRef,
     isEndingMeeting,
     setIsEndingMeeting,
+    isCopied,
+    setIsCopied,
   } = useAppState();
 
   // Socket setup
@@ -72,6 +74,7 @@ function App() {
       setIsMuted,
       isVideoOff,
       setIsVideoOff,
+      setIsCopied,
       broadcastMediaStatus,
     });
 
@@ -235,7 +238,7 @@ function App() {
             : "status-bar--disconnected"
         }`}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        <div className="status-bar-content">
           <span>
             Meeting ID: {meetingId} {isHost && "(Host)"}
           </span>
@@ -243,26 +246,8 @@ function App() {
             onClick={() => copyMeetingId(meetingId)}
             className="copy-meeting-button"
             title="Copy Meeting ID"
-            style={{
-              backgroundColor: "rgba(255, 255, 255, 0.2)",
-              border: "1px solid rgba(255, 255, 255, 0.3)",
-              borderRadius: "4px",
-              color: "white",
-              padding: "4px 8px",
-              fontSize: "12px",
-              cursor: "pointer",
-              transition: "all 0.2s ease",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor =
-                "rgba(255, 255, 255, 0.3)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor =
-                "rgba(255, 255, 255, 0.2)";
-            }}
           >
-            📋 Copy
+            {isCopied ? "✅ Copied!" : "📋 Copy"}
           </button>
         </div>
         <span>Status: {connectionStatus}</span>
@@ -283,9 +268,7 @@ function App() {
 
             {/* Main video */}
             {mainView.isLocal ? (
-              <div
-                style={{ position: "relative", width: "100%", height: "100%" }}
-              >
+              <div className="local-video-container">
                 <video
                   ref={localVideo}
                   autoPlay
@@ -296,42 +279,12 @@ function App() {
                 />
                 {/* Video off overlay for local video */}
                 {isVideoOff && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: 0,
-                      left: 0,
-                      width: "100%",
-                      height: "100%",
-                      backgroundColor: "#6c757d",
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: "white",
-                      zIndex: 1,
-                    }}
-                  >
-                    <div style={{ fontSize: "72px", marginBottom: "10px" }}>
+                  <div className="video-off-overlay">
+                    <div className="avatar-large">
                       {username ? username.charAt(0).toUpperCase() : "Y"}
                     </div>
                     {isMuted && (
-                      <div
-                        style={{
-                          backgroundColor: "rgba(220,53,69,0.9)",
-                          color: "white",
-                          borderRadius: "20px",
-                          width: "40px",
-                          height: "40px",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: "20px",
-                          marginTop: "10px",
-                        }}
-                      >
-                        🔇
-                      </div>
+                      <div className="muted-indicator-overlay">🔇</div>
                     )}
                   </div>
                 )}

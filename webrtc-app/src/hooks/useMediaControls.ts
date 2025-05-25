@@ -12,6 +12,7 @@ interface UseMediaControlsProps {
   setIsMuted: React.Dispatch<React.SetStateAction<boolean>>;
   isVideoOff: boolean;
   setIsVideoOff: React.Dispatch<React.SetStateAction<boolean>>;
+  setIsCopied: React.Dispatch<React.SetStateAction<boolean>>;
   broadcastMediaStatus?: (isMuted: boolean, isVideoOff: boolean) => void;
 }
 
@@ -22,6 +23,7 @@ export const useMediaControls = ({
   setIsMuted,
   isVideoOff,
   setIsVideoOff,
+  setIsCopied,
   broadcastMediaStatus,
 }: UseMediaControlsProps) => {
   const startMedia = useCallback(async () => {
@@ -77,12 +79,19 @@ export const useMediaControls = ({
     return participantId;
   }, []);
 
-  const copyMeetingId = useCallback((meetingId: string | null) => {
-    if (meetingId) {
-      navigator.clipboard.writeText(meetingId);
-      alert("Meeting ID copied to clipboard!");
-    }
-  }, []);
+  const copyMeetingId = useCallback(
+    (meetingId: string | null) => {
+      if (meetingId) {
+        navigator.clipboard.writeText(meetingId);
+        setIsCopied(true);
+        // Reset the copied state after 2 seconds
+        setTimeout(() => {
+          setIsCopied(false);
+        }, 2000);
+      }
+    },
+    [setIsCopied]
+  );
 
   return {
     startMedia,

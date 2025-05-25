@@ -30,6 +30,7 @@ export const useAppState = () => {
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [isEndingMeeting, setIsEndingMeeting] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
 
   // Refs
   const localVideo = useRef<HTMLVideoElement | null>(null);
@@ -73,6 +74,8 @@ export const useAppState = () => {
     setIsVideoOff,
     isEndingMeeting,
     setIsEndingMeeting,
+    isCopied,
+    setIsCopied,
 
     // Refs
     localVideo,
