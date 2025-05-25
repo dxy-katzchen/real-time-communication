@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import Auth from "./Components/Auth";
 import MeetingLobby from "./Components/MeetingLobby";
 import { ParticipantThumbnail } from "./Components/ParticipantThumbnail";
@@ -135,6 +136,22 @@ function App() {
   const switchToMainView = (participantId: string | null) => {
     setMainParticipant(participantId);
   };
+
+  // Ensure local video has stream when it becomes main view
+  useEffect(() => {
+    if (
+      mainParticipant === null &&
+      localVideo.current &&
+      localStreamRef.current
+    ) {
+      // User has switched to themselves as main view
+      if (localVideo.current.srcObject !== localStreamRef.current) {
+        console.log("Setting local stream to main video element");
+        localVideo.current.srcObject = localStreamRef.current;
+        localVideo.current.play().catch(console.error);
+      }
+    }
+  }, [mainParticipant, localStreamRef, localVideo]);
 
   // Handle logout
   const handleLogout = () => {
@@ -275,6 +292,7 @@ function App() {
                   muted
                   playsInline
                   className="main-video"
+                  key="local-main-video"
                 />
                 {/* Video off overlay for local video */}
                 {isVideoOff && (
