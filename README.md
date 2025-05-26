@@ -16,6 +16,7 @@ View the live demo at [https://real-time-chat.com](https://real-time-chat.com)
 - ✅ Participant thumbnails with click-to-focus
 - ✅ Connection management with automatic retry
 - ✅ Responsive design for desktop and mobile
+- ✅ Mobile-optimized UI with conditional feature availability
 
 ## 🏗️ Architecture Overview
 
@@ -364,6 +365,30 @@ style={{ transform: isScreenSharing ? "none" : "scaleX(-1)" }}
 - Connection timeout handling (10-second default)
 - Graceful fallback for failed connections
 - Comprehensive connection state monitoring
+
+### Mobile Device Optimization
+
+The application automatically detects device capabilities and adapts the UI accordingly:
+
+```typescript
+// Device detection utility
+import { isScreenShareSupported } from "./utils/deviceUtils";
+
+// Conditional rendering of screen share button
+{
+  isScreenShareSupported() && (
+    <button onClick={toggleScreenShare}>Share Screen</button>
+  );
+}
+```
+
+**Mobile-specific adaptations:**
+
+- ✅ Screen share button hidden on mobile devices
+- ✅ Touch-optimized control buttons
+- ✅ Responsive layout for different screen sizes
+- ✅ iOS Safari compatibility optimizations
+- ✅ Automatic detection of mobile, tablet, and desktop devices
 
 ## ⚡ Performance Optimizations
 
