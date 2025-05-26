@@ -3,7 +3,7 @@ name: CI/CD Pipeline
 on:
   push:
     branches:
-      - main # Only run CI/CD on main branch pushes (production deployments)
+      - main
 
 jobs:
   detect-changes:
@@ -31,12 +31,10 @@ jobs:
               - 'nginx.conf'
               - '.github/workflows/**'
 
-  # Run comprehensive tests before building/deploying
   test-backend:
     runs-on: ubuntu-latest
     needs: detect-changes
     if: needs.detect-changes.outputs.backend-changed == 'true'
-
     services:
       mongodb:
         image: mongo:6.0
@@ -47,16 +45,13 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.9"
-
       - name: Cache pip dependencies
         uses: actions/cache@v4
         with:
@@ -64,25 +59,21 @@ jobs:
           key: ${{ runner.os }}-pip-${{ hashFiles('Flask-Backend/requirements*.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-
-
       - name: Install backend dependencies
         working-directory: ./Flask-Backend
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install -r requirements-test.txt
-
       - name: Wait for MongoDB
         run: |
           echo "Waiting for MongoDB to be ready..."
           sleep 10
-
       - name: Run comprehensive test suite
         working-directory: ./Flask-Backend
         run: |
           echo "Running comprehensive Flask backend test suite..."
           make ci-test
-
       - name: Validate test coverage threshold
         working-directory: ./Flask-Backend
         run: |
@@ -97,7 +88,6 @@ jobs:
           else:
               print(f'SUCCESS: Coverage {coverage:.1f}% meets minimum threshold')
           "
-
       - name: Upload test results
         uses: actions/upload-artifact@v4
         if: always()
@@ -112,26 +102,21 @@ jobs:
     runs-on: ubuntu-latest
     needs: detect-changes
     if: needs.detect-changes.outputs.frontend-changed == 'true'
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "18"
           cache: "npm"
           cache-dependency-path: "./webrtc-app/package-lock.json"
-
       - name: Install frontend dependencies
         working-directory: ./webrtc-app
         run: npm ci
-
       - name: Build frontend
         working-directory: ./webrtc-app
         run: npm run build
-
       - name: Verify build output
         working-directory: ./webrtc-app
         run: |
@@ -139,39 +124,32 @@ jobs:
           ls -la dist/
           echo "Index.html content (first 200 chars):"
           head -c 200 dist/index.html
-
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: frontend-build
-          path: ./webrtc-app/dist/*
+          path: ./webrtc-app/dist/**
 
   build-backend:
     runs-on: ubuntu-latest
     needs: [detect-changes, test-backend]
     if: needs.detect-changes.outputs.backend-changed == 'true' && needs.test-backend.result == 'success'
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.9"
-
       - name: Install backend dependencies
         working-directory: ./Flask-Backend
         run: |
           python -m pip install --upgrade pip
-          # Don't overwrite the existing requirements.txt - use it instead
           pip install -r requirements.txt
-
       - name: Test backend imports
         working-directory: ./Flask-Backend
         run: |
           python -c "import server; print('Backend imports successfully')"
-
       - name: Upload backend artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -181,7 +159,6 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: [detect-changes, build-frontend, build-backend, test-backend]
-    # Deploy if any changes are detected and we're on main branch and all tests pass
     if: |
       always() && 
       github.ref == 'refs/heads/main' && 
@@ -210,6 +187,15 @@ jobs:
           name: backend-build
           path: ./Flask-Backend
 
+      - name: Debug: List artifact contents before copy
+        run: |
+          echo "Listing ./frontend-dist:"
+          ls -l ./frontend-dist || echo "No ./frontend-dist"
+          echo "Listing ./frontend-dist/dist:"
+          ls -l ./frontend-dist/dist || echo "No ./frontend-dist/dist"
+          echo "Listing ./Flask-Backend:"
+          ls -l ./Flask-Backend || echo "No ./Flask-Backend"
+
       - name: Prepare deployment files
         run: |
           echo "Preparing deployment..."
@@ -217,20 +203,21 @@ jobs:
           echo "Backend changed: ${{ needs.detect-changes.outputs.backend-changed }}"
           echo "Config changed: ${{ needs.detect-changes.outputs.config-changed }}"
 
-          # Create deployment directory structure
           mkdir -p ./deploy-files
 
-          # Copy files based on what changed
+          # Handle frontend files (support both flattened and nested structures)
           if [ "${{ needs.detect-changes.outputs.frontend-changed }}" == "true" ]; then
             echo "Including frontend files..."
-            echo "Frontend dist contents:"
-            ls -la ./frontend-dist/
-            # Copy the contents of frontend-dist to webrtc-dist, not the folder itself
             mkdir -p ./deploy-files/webrtc-dist
-            cp -r ./frontend-dist/* ./deploy-files/webrtc-dist/
-            echo "Deploy files structure:"
-            ls -la ./deploy-files/
-            echo "Deploy webrtc-dist contents:"
+            # Try direct copy first
+            if compgen -G "./frontend-dist/index.html" > /dev/null; then
+              cp -r ./frontend-dist/* ./deploy-files/webrtc-dist/
+            elif [ -d "./frontend-dist/dist" ]; then
+              cp -r ./frontend-dist/dist/* ./deploy-files/webrtc-dist/
+            else
+              echo "❌ No frontend build output found!"
+              exit 1
+            fi
             ls -la ./deploy-files/webrtc-dist/
           fi
 
@@ -243,6 +230,9 @@ jobs:
             echo "Including config files..."
             cp ./nginx.conf ./deploy-files/
           fi
+
+          echo "Final deploy-files structure:"
+          ls -lR ./deploy-files
 
       - name: Verify deployment files exist
         run: |
