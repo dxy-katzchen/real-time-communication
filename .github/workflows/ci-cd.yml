@@ -132,6 +132,14 @@ jobs:
         working-directory: ./webrtc-app
         run: npm run build
 
+      - name: Verify build output
+        working-directory: ./webrtc-app
+        run: |
+          echo "Build completed. Checking dist directory..."
+          ls -la dist/
+          echo "Index.html content (first 200 chars):"
+          head -c 200 dist/index.html
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -215,7 +223,15 @@ jobs:
           # Copy files based on what changed
           if [ "${{ needs.detect-changes.outputs.frontend-changed }}" == "true" ]; then
             echo "Including frontend files..."
-            cp -r ./frontend-dist ./deploy-files/webrtc-dist
+            echo "Frontend dist contents:"
+            ls -la ./frontend-dist/
+            # Copy the contents of frontend-dist to webrtc-dist, not the folder itself
+            mkdir -p ./deploy-files/webrtc-dist
+            cp -r ./frontend-dist/* ./deploy-files/webrtc-dist/
+            echo "Deploy files structure:"
+            ls -la ./deploy-files/
+            echo "Deploy webrtc-dist contents:"
+            ls -la ./deploy-files/webrtc-dist/
           fi
 
           if [ "${{ needs.detect-changes.outputs.backend-changed }}" == "true" ]; then
@@ -343,11 +359,44 @@ jobs:
             if [ "$FRONTEND_CHANGED" == "true" ]; then
               echo "Deploying frontend changes..."
               
-              # Update frontend files
+              # Debug: Check what files we received
+              echo "=== Debug: Contents of /tmp/deploy ==="
+              ls -la /tmp/deploy/
+              
+              # Check if webrtc-dist directory exists and what's in it
               if [ -d "/tmp/deploy/webrtc-dist" ]; then
+                echo "=== Debug: Contents of /tmp/deploy/webrtc-dist ==="
+                ls -la /tmp/deploy/webrtc-dist/
+                
+                echo "=== Debug: Current nginx html directory before cleanup ==="
+                ls -la /usr/share/nginx/html/
+                
+                # Stop nginx to ensure files aren't locked
+                sudo systemctl stop nginx || true
+                
+                # Clear existing frontend files
                 sudo rm -rf /usr/share/nginx/html/*
+                
+                # Copy new frontend files
                 sudo cp -r /tmp/deploy/webrtc-dist/* /usr/share/nginx/html/
+                
+                # Fix permissions and ownership
+                sudo chown -R nginx:nginx /usr/share/nginx/html/
+                sudo chmod -R 644 /usr/share/nginx/html/
+                sudo find /usr/share/nginx/html/ -type d -exec chmod 755 {} \;
+                
+                echo "=== Debug: New nginx html directory after deployment ==="
+                ls -la /usr/share/nginx/html/
+                
+                # Start nginx
+                sudo systemctl start nginx
+                
                 echo "✅ Frontend files updated"
+              else
+                echo "❌ ERROR: /tmp/deploy/webrtc-dist directory not found!"
+                echo "Available directories in /tmp/deploy:"
+                ls -la /tmp/deploy/
+                exit 1
               fi
             else
               echo "⏭️ Skipping frontend deployment (no changes)"
@@ -375,10 +424,13 @@ jobs:
             else
               echo "⏭️ Skipping nginx config update (no changes)"
               
-              # Still restart nginx if frontend changed to pick up new files
+              # Still restart nginx if frontend changed to pick up new files and clear cache
               if [ "$FRONTEND_CHANGED" == "true" ]; then
-                echo "Restarting nginx to pick up new frontend files..."
+                echo "Restarting nginx to pick up new frontend files and clear cache..."
                 sudo systemctl restart nginx
+                
+                # Force clear nginx cache if it exists
+                sudo rm -rf /var/cache/nginx/* 2>/dev/null || true
               fi
             fi
 
@@ -424,6 +476,23 @@ jobs:
             # Check if Nginx is serving the frontend (always check since nginx might restart)
             if curl -f http://localhost/ > /dev/null 2>&1; then
               echo "✅ Nginx frontend is healthy"
+              
+              # Additional check: verify that we're actually serving the new files
+              if [ "$FRONTEND_CHANGED" == "true" ]; then
+                echo "=== Verifying frontend deployment ==="
+                echo "Index.html content (first 500 chars):"
+                head -c 500 /usr/share/nginx/html/index.html
+                echo ""
+                echo "Files in html directory:"
+                ls -la /usr/share/nginx/html/
+                
+                # Check if index.html exists and has content
+                if [ -f "/usr/share/nginx/html/index.html" ] && [ -s "/usr/share/nginx/html/index.html" ]; then
+                  echo "✅ Frontend files are properly deployed"
+                else
+                  echo "❌ WARNING: Frontend deployment may have issues - index.html is missing or empty"
+                fi
+              fi
             else
               echo "❌ Nginx frontend health check failed"
               sudo systemctl status nginx --no-pager
