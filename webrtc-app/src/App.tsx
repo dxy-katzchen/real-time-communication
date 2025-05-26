@@ -667,7 +667,7 @@ function App() {
       <Drawer
         title={`Chat (${participants.length})`}
         placement="bottom"
-        height="75vh"
+        height="80vh"
         open={isChatOpen}
         onClose={toggleChat}
         className="chat-drawer"
