@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import { Drawer } from "antd";
 import Auth from "./Components/Auth/Auth";
 import MeetingLobby from "./Components/MeetingLobby/MeetingLobby";
 import Chat from "./Components/Chat/Chat";
@@ -56,55 +57,16 @@ function App() {
 
   // Participants bottom sheet state
   const [isParticipantsSheetOpen, setIsParticipantsSheetOpen] = useState(false);
-  const [isParticipantsSheetClosing, setIsParticipantsSheetClosing] =
-    useState(false);
 
   // Function to open participants sheet
   const openParticipantsSheet = () => {
-    // Prevent opening if already open or closing
-    if (isParticipantsSheetOpen || isParticipantsSheetClosing) return;
-
-    // Reset any previous state and cleanup classes
-    const sheet = document.querySelector(".participants-bottom-sheet");
-    if (sheet) {
-      sheet.classList.remove("closing", "active");
-    }
-
-    setIsParticipantsSheetClosing(false);
     setIsParticipantsSheetOpen(true);
-
-    // Force a repaint on iOS by using requestAnimationFrame
-    requestAnimationFrame(() => {
-      if (sheet) {
-        sheet.classList.add("active");
-      }
-    });
   };
 
-  // Smooth closing function for participants sheet
-  const closeParticipantsSheet = () => {
-    // Prevent multiple close attempts
-    if (!isParticipantsSheetOpen || isParticipantsSheetClosing) return;
-
-    setIsParticipantsSheetClosing(true);
-
-    // Start the closing animation
-    const sheet = document.querySelector(".participants-bottom-sheet");
-    if (sheet) {
-      sheet.classList.add("closing");
-      sheet.classList.remove("active");
-    }
-
-    // Wait for animation to complete before actually closing
-    setTimeout(() => {
-      setIsParticipantsSheetOpen(false);
-      setIsParticipantsSheetClosing(false);
-      if (sheet) {
-        sheet.classList.remove("closing");
-        sheet.classList.remove("active");
-      }
-    }, 150); // Match the faster 0.15s CSS closing animation duration
-  };
+  // Function to close participants sheet
+  const closeParticipantsSheet = useCallback(() => {
+    setIsParticipantsSheetOpen(false);
+  }, []);
 
   // Check for meeting link in URL parameters
   useEffect(() => {
@@ -130,243 +92,6 @@ function App() {
       document.removeEventListener("keydown", handleEscapeKey);
     };
   }, [isParticipantsSheetOpen, closeParticipantsSheet]);
-
-  // Enhanced iOS-specific fix for participants sheet content rendering
-  useEffect(() => {
-    if (isParticipantsSheetOpen) {
-      // Comprehensive iOS detection (all browsers use WebKit on iOS)
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-                    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) ||
-                    /Safari/.test(navigator.userAgent) && /Mobile/.test(navigator.userAgent);
-      
-      if (isIOS) {
-        // Enhanced multi-strategy approach to fix iOS WebKit rendering issues
-        const forceIOSRender = () => {
-          const participantsSheet = document.querySelector('.participants-bottom-sheet') as HTMLElement;
-          const bottomSheetContent = document.querySelector('.bottom-sheet-content') as HTMLElement;
-          const participantsContainer = document.querySelector('.bottom-sheet-participants') as HTMLElement;
-          const participantItems = document.querySelectorAll('.participant-item');
-          
-          if (participantsSheet && bottomSheetContent && participantsContainer) {
-            // Strategy 1: Force complete DOM re-rendering
-            participantsSheet.style.display = 'none';
-            void participantsSheet.offsetHeight; // Force layout
-            participantsSheet.style.display = 'block';
-            
-            // Strategy 2: Aggressive hardware acceleration for all elements
-            [participantsSheet, bottomSheetContent, participantsContainer].forEach(element => {
-              element.style.transform = 'translate3d(0, 0, 0)';
-              element.style.backfaceVisibility = 'hidden';
-              element.style.willChange = 'transform, opacity';
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              (element.style as any).webkitTransform = 'translate3d(0, 0, 0)';
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              (element.style as any).webkitBackfaceVisibility = 'hidden';
-            });
-            
-            // Strategy 3: Force visibility and opacity for each participant
-            participantItems.forEach((item, index) => {
-              const element = item as HTMLElement;
-              
-              // Reset all animations and transitions
-              element.style.animation = 'none';
-              element.style.transition = 'none';
-              element.style.opacity = '0';
-              element.style.visibility = 'hidden';
-              element.style.transform = 'translate3d(0, 20px, 0)';
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              (element.style as any).webkitTransform = 'translate3d(0, 20px, 0)';
-              
-              // Force layout
-              void element.offsetHeight;
-              
-              // Restore visibility with staggered animation
-              setTimeout(() => {
-                element.style.visibility = 'visible';
-                element.style.transition = 'all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
-                element.style.transform = 'translate3d(0, 0, 0)';
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                (element.style as any).webkitTransform = 'translate3d(0, 0, 0)';
-                element.style.opacity = '1';
-                
-                // Force another layout after visibility change
-                void element.offsetHeight;
-              }, 50 + (index * 25));
-            });
-            
-            // Strategy 4: Multiple forced reflows at different intervals
-            const forceReflow = () => {
-              void participantsContainer.offsetHeight;
-              void participantsContainer.offsetWidth;
-              void bottomSheetContent.offsetHeight;
-              void participantsSheet.offsetHeight;
-            };
-            
-            forceReflow();
-            requestAnimationFrame(forceReflow);
-            
-            // Strategy 5: Ensure container scrollability
-            setTimeout(() => {
-              participantsContainer.style.overflowY = 'auto';
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              (participantsContainer.style as any).webkitOverflowScrolling = 'touch';
-              participantsContainer.style.touchAction = 'pan-y';
-              
-              // Strategy 6: Final failsafe - force all content visible
-              setTimeout(() => {
-                participantsContainer.style.opacity = '1';
-                participantsContainer.style.visibility = 'visible';
-                participantItems.forEach((item) => {
-                  const element = item as HTMLElement;
-                  element.style.opacity = '1';
-                  element.style.visibility = 'visible';
-                });
-                
-                // Final cleanup
-                [participantsSheet, bottomSheetContent, participantsContainer].forEach(element => {
-                  element.style.willChange = 'auto';
-                });
-              }, 200);
-            }, 300);
-          }
-        };
-        
-        // Execute with multiple delays to handle iOS WebKit aggressive optimization
-        forceIOSRender();
-        setTimeout(forceIOSRender, 100);
-        setTimeout(forceIOSRender, 250);
-        setTimeout(forceIOSRender, 500); // Additional delay for stubborn cases
-        
-        // Force re-render when animation completes
-        setTimeout(() => {
-          const participantItems = document.querySelectorAll('.participant-item');
-          participantItems.forEach((item) => {
-            const element = item as HTMLElement;
-            element.style.willChange = 'auto';
-            void element.offsetHeight;
-          });
-          
-          // Final visibility check - ultimate failsafe
-          const participantsContainer = document.querySelector('.bottom-sheet-participants') as HTMLElement;
-          if (participantsContainer) {
-            participantsContainer.style.opacity = '1';
-            participantsContainer.style.visibility = 'visible';
-          }
-        }, 1000);
-      }
-    }
-  }, [isParticipantsSheetOpen, participants.length, remoteParticipants.size]);
-
-  // Prevent background scrolling when participants sheet is open
-  useEffect(() => {
-    if (isParticipantsSheetOpen || isParticipantsSheetClosing) {
-      // Detect iOS
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-
-      // iOS-specific body lock
-      const originalStyle = {
-        overflow: document.body.style.overflow,
-        position: document.body.style.position,
-        width: document.body.style.width,
-        height: document.body.style.height,
-        touchAction: document.body.style.touchAction,
-      };
-
-      // Prevent scrolling on the body - iOS specific
-      document.body.style.overflow = "hidden";
-      document.body.style.position = "fixed";
-      document.body.style.width = "100%";
-      document.body.style.height = "100%";
-      document.body.style.touchAction = "none";
-
-      // iOS-specific touch prevention
-      const preventTouchMove = (e: TouchEvent) => {
-        const target = e.target as Element;
-        const isInsideBottomSheet = target.closest(".bottom-sheet-content");
-        const isBottomSheetBackground = target.classList.contains(
-          "participants-bottom-sheet"
-        );
-        const isBottomSheetParticipants = target.closest(
-          ".bottom-sheet-participants"
-        );
-
-        // Allow scrolling only within the participants list
-        if (isBottomSheetParticipants) {
-          // Let the participants list handle its own scrolling
-          return;
-        }
-
-        // Prevent all other touch movements
-        if (!isInsideBottomSheet || isBottomSheetBackground) {
-          e.preventDefault();
-          e.stopPropagation();
-        }
-      };
-
-      // iOS-specific passive: false is crucial for preventDefault to work
-      document.addEventListener("touchmove", preventTouchMove, {
-        passive: false,
-        capture: true,
-      });
-
-      // Also prevent touchstart on background for iOS
-      const preventTouchStart = (e: TouchEvent) => {
-        const target = e.target as Element;
-        const isInsideBottomSheet = target.closest(".bottom-sheet-content");
-
-        if (
-          !isInsideBottomSheet &&
-          target.classList.contains("participants-bottom-sheet")
-        ) {
-          e.preventDefault();
-        }
-      };
-
-      document.addEventListener("touchstart", preventTouchStart, {
-        passive: false,
-        capture: true,
-      });
-
-      // iOS-specific: prevent document scroll
-      if (isIOS) {
-        const preventDocumentScroll = (e: Event) => {
-          e.preventDefault();
-        };
-        document.addEventListener("scroll", preventDocumentScroll, {
-          passive: false,
-        });
-        window.addEventListener("scroll", preventDocumentScroll, {
-          passive: false,
-        });
-
-        return () => {
-          // Restore original styles
-          document.body.style.overflow = originalStyle.overflow;
-          document.body.style.position = originalStyle.position;
-          document.body.style.width = originalStyle.width;
-          document.body.style.height = originalStyle.height;
-          document.body.style.touchAction = originalStyle.touchAction;
-
-          document.removeEventListener("touchmove", preventTouchMove);
-          document.removeEventListener("touchstart", preventTouchStart);
-          document.removeEventListener("scroll", preventDocumentScroll);
-          window.removeEventListener("scroll", preventDocumentScroll);
-        };
-      }
-
-      return () => {
-        // Restore original styles
-        document.body.style.overflow = originalStyle.overflow;
-        document.body.style.position = originalStyle.position;
-        document.body.style.width = originalStyle.width;
-        document.body.style.height = originalStyle.height;
-        document.body.style.touchAction = originalStyle.touchAction;
-
-        document.removeEventListener("touchmove", preventTouchMove);
-        document.removeEventListener("touchstart", preventTouchStart);
-      };
-    }
-  }, [isParticipantsSheetOpen, isParticipantsSheetClosing]);
 
   // Socket setup
   const { socketRef, connectionStatus } = useSocketSetup();
@@ -906,192 +631,114 @@ function App() {
         />
       )}
 
-      {/* Participants Bottom Sheet */}
-      <div
-        className={`participants-bottom-sheet ${
-          isParticipantsSheetOpen ? "active" : ""
-        } ${isParticipantsSheetClosing ? "closing" : ""}`}
-        onClick={(e) => {
-          if (e.target === e.currentTarget) {
-            closeParticipantsSheet();
-          }
-        }}
-        onTouchStart={(e) => {
-          // Prevent background scroll when touching the backdrop
-          if (e.target === e.currentTarget) {
-            e.preventDefault();
-            e.stopPropagation();
-          }
-        }}
-        onTouchMove={(e) => {
-          // Prevent any touch movement on backdrop
-          if (e.target === e.currentTarget) {
-            e.preventDefault();
-            e.stopPropagation();
-          }
+      {/* Participants Drawer */}
+      <Drawer
+        title={`Participants (${participants.length})`}
+        placement="bottom"
+        height="auto"
+        open={isParticipantsSheetOpen}
+        onClose={closeParticipantsSheet}
+        className="participants-drawer"
+        styles={{
+          body: { padding: "16px" },
+          header: { borderBottom: "1px solid #f0f0f0" },
         }}
       >
-        <div
-          className="bottom-sheet-content"
-          onTouchStart={(e) => {
-            // Allow touches within the content
-            e.stopPropagation();
-          }}
-          onTouchMove={(e) => {
-            // Only allow vertical scrolling within content
-            e.stopPropagation();
-          }}
-        >
-          <div className="bottom-sheet-handle"></div>
-          <div className="bottom-sheet-header">
-            <h5>Participants ({participants.length})</h5>
-            <button
-              onClick={closeParticipantsSheet}
-              className="bottom-sheet-close"
-            >
-              ✕
-            </button>
-          </div>
-          <div
-            className="bottom-sheet-participants"
-            key={`participants-${isParticipantsSheetOpen}-${participants.length}`}
-          >
-            {/* Local user */}
-            <div
-              className={`participant-item ${
-                mainParticipant === null ? "active" : ""
-              }`}
-              onClick={() => {
-                setMainParticipant(null);
-                closeParticipantsSheet();
-              }}
-            >
+        <div className="drawer-participants">
+          {/* All participants from the participants array */}
+          {participants.map((participant) => {
+            const isLocalUser = participant.userId === userId;
+            const remoteParticipant = isLocalUser
+              ? null
+              : Array.from(remoteParticipants.values()).find(
+                  (p) => p.userId === participant.userId
+                );
+
+            return (
               <div
-                className={`participant-avatar local ${isHost ? "host" : ""}`}
-              >
-                {(username || "U").charAt(0).toUpperCase()}
-              </div>
-              <div className="participant-info">
-                <div
-                  className={`participant-name ${isHost ? "host" : ""} local`}
-                >
-                  {username || "Unknown"}
-                </div>
-                <div className="participant-status">
-                  {isMuted && (
-                    <span className="status-indicator muted">🔇 Muted</span>
-                  )}
-                  {isVideoOff && (
-                    <span className="status-indicator video-off">
-                      📹 Video Off
-                    </span>
-                  )}
-                  {isScreenSharing && (
-                    <span className="status-indicator screen-sharing">
-                      🖥️ Screen Sharing
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Remote participants */}
-            {Array.from(remoteParticipants.values()).map((participant) => {
-              // Enhanced fallback mechanism for participant lookup
-              let participantInfo = participants.find(
-                (p) => p.userId === participant.userId
-              );
-
-              // Fallback 1: Try matching by socketId if userId lookup fails
-              if (!participantInfo) {
-                participantInfo = participants.find(
-                  (p) => p.userId === participant.socketId
-                );
-              }
-
-              // Fallback 2: Try to find any participant that might match
-              if (!participantInfo) {
-                // Look for a participant with a similar identifier
-                participantInfo = participants.find(
-                  (p) =>
-                    p.username === participant.userId ||
-                    p.displayName === participant.userId
-                );
-              }
-
-              // Generate display name with improved fallbacks
-              let displayName =
-                participantInfo?.displayName || participantInfo?.username;
-
-              // If still no name found, create a more user-friendly fallback
-              if (!displayName) {
-                // Extract a readable identifier from userId or socketId
-                const identifier = participant.userId || participant.socketId;
-                if (identifier) {
-                  // If it looks like a MongoDB ObjectId or similar, create a friendly name
-                  if (
-                    /^[a-f\d]{24}$/i.test(identifier) ||
-                    identifier.length > 15
-                  ) {
-                    displayName = `User ${identifier.slice(-4).toUpperCase()}`;
+                key={participant.userId}
+                className={`participant-item ${
+                  isLocalUser
+                    ? mainParticipant === null
+                      ? "active"
+                      : ""
+                    : mainParticipant === participant.userId
+                    ? "active"
+                    : ""
+                }`}
+                onClick={() => {
+                  if (isLocalUser) {
+                    setMainParticipant(null);
                   } else {
-                    displayName = identifier;
-                  }
-                } else {
-                  displayName = "Guest";
-                }
-              }
-
-              const isParticipantHost = participantInfo?.isHost || false;
-
-              return (
-                <div
-                  key={participant.socketId}
-                  className={`participant-item ${
-                    mainParticipant === participant.userId ? "active" : ""
-                  }`}
-                  onClick={() => {
                     setMainParticipant(participant.userId);
-                    closeParticipantsSheet();
-                  }}
+                  }
+                  closeParticipantsSheet();
+                }}
+              >
+                <div
+                  className={`participant-avatar ${
+                    isLocalUser ? "local" : ""
+                  } ${participant.isHost ? "host" : ""}`}
                 >
+                  {(participant.displayName || participant.username || "U")
+                    .charAt(0)
+                    .toUpperCase()}
+                </div>
+                <div className="participant-info">
                   <div
-                    className={`participant-avatar ${
-                      isParticipantHost ? "host" : ""
-                    }`}
+                    className={`participant-name ${
+                      participant.isHost ? "host" : ""
+                    } ${isLocalUser ? "local" : ""}`}
                   >
-                    {displayName.charAt(0).toUpperCase()}
+                    {participant.displayName ||
+                      participant.username ||
+                      "Unknown"}
                   </div>
-                  <div className="participant-info">
-                    <div
-                      className={`participant-name ${
-                        isParticipantHost ? "host" : ""
-                      }`}
-                    >
-                      {displayName}
-                    </div>
-                    <div className="participant-status">
-                      {participant.isMuted && (
-                        <span className="status-indicator muted">🔇 Muted</span>
-                      )}
-                      {participant.isVideoOff && (
-                        <span className="status-indicator video-off">
-                          📹 Video Off
-                        </span>
-                      )}
-                      {participant.isScreenSharing && (
-                        <span className="status-indicator screen-sharing">
-                          🖥️ Screen Sharing
-                        </span>
-                      )}
-                    </div>
+                  <div className="participant-status">
+                    {isLocalUser ? (
+                      <>
+                        {isMuted && (
+                          <span className="status-indicator muted">
+                            🔇 Muted
+                          </span>
+                        )}
+                        {isVideoOff && (
+                          <span className="status-indicator video-off">
+                            📹 Video Off
+                          </span>
+                        )}
+                        {isScreenSharing && (
+                          <span className="status-indicator screen-sharing">
+                            🖥️ Screen Sharing
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        {remoteParticipant?.isMuted && (
+                          <span className="status-indicator muted">
+                            🔇 Muted
+                          </span>
+                        )}
+                        {remoteParticipant?.isVideoOff && (
+                          <span className="status-indicator video-off">
+                            📹 Video Off
+                          </span>
+                        )}
+                        {remoteParticipant?.isScreenSharing && (
+                          <span className="status-indicator screen-sharing">
+                            🖥️ Screen Sharing
+                          </span>
+                        )}
+                      </>
+                    )}
                   </div>
                 </div>
-              );
-            })}
-          </div>
+              </div>
+            );
+          })}
         </div>
-      </div>
+      </Drawer>
     </div>
   );
 }
