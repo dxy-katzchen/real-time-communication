@@ -164,7 +164,7 @@ def get_participants(meeting_id):
     
     return jsonify(result), 200
 
-# Add a new endpoint to check if user is host
+# check if user is host
 @app.route('/api/meetings/<meeting_id>/is-host/<user_id>', methods=['GET'])
 def is_host(meeting_id, user_id):
     meeting = meetings_collection.find_one({'_id': ObjectId(meeting_id)})
@@ -173,7 +173,7 @@ def is_host(meeting_id, user_id):
     
     return jsonify({'isHost': meeting['hostId'] == user_id}), 200
 
-# Add endpoint to remove participant when they leave
+# remove participant when they leave
 @app.route('/api/meetings/<meeting_id>/leave', methods=['POST'])
 def leave_meeting_api(meeting_id):
     user_data = request.json
