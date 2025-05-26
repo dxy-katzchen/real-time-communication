@@ -418,7 +418,7 @@
 
 .participants-bottom-sheet.closing {
   opacity: 0;
-  visibility: visible;
+  visibility: visible; /* Keep visible during closing animation */
   backdrop-filter: blur(0px);
   animation: slideDownBackdrop 0.15s cubic-bezier(0.55, 0.06, 0.68, 0.19);
 }
@@ -1201,8 +1201,16 @@
     display: flex !important;
   }
 
-  /* Show participants bottom sheet on mobile */
+  /* Show participants bottom sheet on mobile - always show when open or closing */
+  .participants-bottom-sheet {
+    display: block;
+  }
+
   .participants-bottom-sheet.active {
+    display: block;
+  }
+
+  .participants-bottom-sheet.closing {
     display: block;
   }
 

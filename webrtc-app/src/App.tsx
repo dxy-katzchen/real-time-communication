@@ -56,18 +56,26 @@ function App() {
 
   // Participants bottom sheet state
   const [isParticipantsSheetOpen, setIsParticipantsSheetOpen] = useState(false);
+  const [isParticipantsSheetClosing, setIsParticipantsSheetClosing] = useState(false);
 
   // Smooth closing function for participants sheet
   const closeParticipantsSheet = () => {
+    // Prevent multiple close attempts
+    if (!isParticipantsSheetOpen || isParticipantsSheetClosing) return;
+
+    setIsParticipantsSheetClosing(true);
+
     // Start the closing animation
     const sheet = document.querySelector(".participants-bottom-sheet");
     if (sheet) {
       sheet.classList.add("closing");
+      sheet.classList.remove("active");
     }
 
     // Wait for animation to complete before actually closing
     setTimeout(() => {
       setIsParticipantsSheetOpen(false);
+      setIsParticipantsSheetClosing(false);
       if (sheet) {
         sheet.classList.remove("closing");
       }
@@ -89,7 +97,7 @@ function App() {
   useEffect(() => {
     const handleEscapeKey = (event: KeyboardEvent) => {
       if (event.key === "Escape" && isParticipantsSheetOpen) {
-        setIsParticipantsSheetOpen(false);
+        closeParticipantsSheet();
       }
     };
 
@@ -97,7 +105,7 @@ function App() {
     return () => {
       document.removeEventListener("keydown", handleEscapeKey);
     };
-  }, [isParticipantsSheetOpen]);
+  }, [isParticipantsSheetOpen, closeParticipantsSheet]);
 
   // Socket setup
   const { socketRef, connectionStatus } = useSocketSetup();
@@ -641,7 +649,7 @@ function App() {
       <div
         className={`participants-bottom-sheet ${
           isParticipantsSheetOpen ? "active" : ""
-        }`}
+        } ${isParticipantsSheetClosing ? "closing" : ""}`}
         onClick={(e) => {
           if (e.target === e.currentTarget) {
             closeParticipantsSheet();
