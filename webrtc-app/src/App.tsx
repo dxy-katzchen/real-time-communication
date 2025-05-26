@@ -69,16 +69,36 @@ function App() {
     setIsParticipantsSheetOpen(false);
   }, []);
 
-  // Check for meeting link in URL parameters
+  // Check for meeting link in URL parameters and sync with URL
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const urlMeetingId = urlParams.get("meetingId");
-    if (urlMeetingId && !meetingId) {
+    
+    // If URL has a meeting ID and it's different from current state, update state
+    if (urlMeetingId && urlMeetingId !== meetingId) {
       setMeetingId(urlMeetingId);
-      // Clear the URL parameter after extracting it
-      window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, [meetingId, setMeetingId]);
+
+  // Update URL when meeting ID changes (when joining/creating a meeting)
+  useEffect(() => {
+    const currentUrl = new URL(window.location.href);
+    const currentMeetingIdInUrl = currentUrl.searchParams.get("meetingId");
+
+    if (inRoom && meetingId) {
+      // Add meeting ID to URL when in a meeting
+      if (currentMeetingIdInUrl !== meetingId) {
+        currentUrl.searchParams.set("meetingId", meetingId);
+        window.history.replaceState({}, document.title, currentUrl.toString());
+      }
+    } else {
+      // Remove meeting ID from URL when not in a meeting
+      if (currentMeetingIdInUrl) {
+        currentUrl.searchParams.delete("meetingId");
+        window.history.replaceState({}, document.title, currentUrl.toString());
+      }
+    }
+  }, [meetingId, inRoom]);
 
   // Handle participants sheet close on escape key
   useEffect(() => {
@@ -331,6 +351,13 @@ function App() {
     setMainParticipant(null);
     setIsMuted(false);
     setIsVideoOff(false);
+
+    // Clear meeting ID from URL on logout
+    const currentUrl = new URL(window.location.href);
+    if (currentUrl.searchParams.get("meetingId")) {
+      currentUrl.searchParams.delete("meetingId");
+      window.history.replaceState({}, document.title, currentUrl.toString());
+    }
 
     console.log("User logged out and all media stopped");
   };

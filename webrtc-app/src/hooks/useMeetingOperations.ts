@@ -74,6 +74,11 @@ export const useMeetingOperations = ({
       setInRoom(true);
       setIsHost(true);
       localStorage.setItem("lastMeetingId", newMeetingId);
+      
+      // Update URL with new meeting ID
+      const currentUrl = new URL(window.location.href);
+      currentUrl.searchParams.set("meetingId", newMeetingId);
+      window.history.replaceState({}, document.title, currentUrl.toString());
     },
     [setMeetingId, setInRoom, setIsHost]
   );
@@ -93,6 +98,11 @@ export const useMeetingOperations = ({
       }
 
       localStorage.setItem("lastMeetingId", meetingIdToJoin);
+      
+      // Update URL with meeting ID
+      const currentUrl = new URL(window.location.href);
+      currentUrl.searchParams.set("meetingId", meetingIdToJoin);
+      window.history.replaceState({}, document.title, currentUrl.toString());
     },
     [setMeetingId, setInRoom, setIsHost, userId]
   );
@@ -115,6 +125,11 @@ export const useMeetingOperations = ({
       setIsHost(false);
       setMainParticipant(null);
       localStorage.removeItem("lastMeetingId");
+      
+      // Remove meeting ID from URL
+      const currentUrl = new URL(window.location.href);
+      currentUrl.searchParams.delete("meetingId");
+      window.history.replaceState({}, document.title, currentUrl.toString());
     } catch (err) {
       console.error("Error ending meeting:", err);
       alert("Failed to end meeting");
@@ -183,6 +198,11 @@ export const useMeetingOperations = ({
     setIsHost(false);
     setMainParticipant(null);
     localStorage.removeItem("lastMeetingId");
+    
+    // Remove meeting ID from URL
+    const currentUrl = new URL(window.location.href);
+    currentUrl.searchParams.delete("meetingId");
+    window.history.replaceState({}, document.title, currentUrl.toString());
 
     console.log("Successfully left meeting and stopped all media");
   }, [
