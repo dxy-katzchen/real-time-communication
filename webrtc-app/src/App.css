@@ -1248,6 +1248,243 @@
   padding: 12px;
 }
 
+/* Chat Desktop/Mobile Display Control */
+.chat-desktop {
+  display: block;
+}
+
+.chat-drawer {
+  display: none;
+}
+
+/* Ant Design Drawer Styles for Chat */
+.chat-drawer .ant-drawer-header {
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.chat-drawer .ant-drawer-header .ant-drawer-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #232333;
+}
+
+.chat-drawer .ant-drawer-body {
+  padding: 0;
+  background-color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  height: 90%;
+}
+
+.drawer-chat {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 70vh;
+}
+
+.drawer-chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.drawer-chat-messages::-webkit-scrollbar {
+  width: 6px;
+}
+
+.drawer-chat-messages::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.drawer-chat-messages::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
+}
+
+.drawer-chat-messages::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+.drawer-chat-messages .chat-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #6b7280;
+  text-align: center;
+  font-size: 14px;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.drawer-chat-messages .chat-empty p {
+  margin: 0;
+  font-weight: 400;
+}
+
+.drawer-chat-messages .chat-message {
+  display: flex;
+  animation: messageSlideIn 0.3s ease-out;
+}
+
+.drawer-chat-messages .chat-message.own-message {
+  justify-content: flex-end;
+}
+
+.drawer-chat-messages .chat-message.other-message {
+  justify-content: flex-start;
+}
+
+.drawer-chat-messages .message-bubble {
+  max-width: 80%;
+  min-width: 80px;
+  display: flex;
+  flex-direction: column;
+}
+
+.drawer-chat-messages .own-message .message-bubble {
+  align-items: flex-end;
+}
+
+.drawer-chat-messages .other-message .message-bubble {
+  align-items: flex-start;
+}
+
+.drawer-chat-messages .message-header {
+  display: flex;
+  align-items: baseline;
+  margin-bottom: 4px;
+  font-size: 12px;
+  gap: 6px;
+  padding: 0 2px;
+}
+
+.drawer-chat-messages .own-message .message-header {
+  flex-direction: row-reverse;
+}
+
+.drawer-chat-messages .message-sender {
+  font-weight: 500;
+  color: #374151;
+  font-size: 12px;
+}
+
+.drawer-chat-messages .message-time {
+  color: #6b7280;
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.drawer-chat-messages .message-content {
+  padding: 10px 14px;
+  border-radius: 8px;
+  word-wrap: break-word;
+  line-height: 1.4;
+  font-size: 14px;
+  max-width: 100%;
+  position: relative;
+  border: 1px solid transparent;
+}
+
+.drawer-chat-messages .own-message .message-content {
+  background: #2d8cff;
+  color: white;
+  border-color: #2d8cff;
+}
+
+.drawer-chat-messages .other-message .message-content {
+  background: #f3f4f6;
+  color: #232333;
+  border-color: #e5e7eb;
+}
+
+.drawer-chat-input-form {
+  padding: 16px;
+  background: #ffffff;
+  border-top: 1px solid #e1e1e6;
+  flex-shrink: 0;
+}
+
+.drawer-chat-input-container {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  background: #f9fafb;
+  border-radius: 6px;
+  padding: 4px;
+  border: 1px solid #e5e7eb;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.drawer-chat-input-container:focus-within {
+  border-color: #2d8cff;
+  box-shadow: 0 0 0 1px rgba(45, 140, 255, 0.1);
+}
+
+.drawer-chat-input {
+  flex: 1;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 4px;
+  outline: none;
+  font-size: 14px;
+  background: transparent;
+  color: #232333;
+  transition: all 0.2s ease;
+  resize: none;
+  min-height: 20px;
+  line-height: 1.4;
+  font-family: inherit;
+}
+
+.drawer-chat-input::placeholder {
+  color: #9ca3af;
+}
+
+.drawer-chat-send-button {
+  padding: 10px 16px;
+  background: #2d8cff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  font-size: 14px;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.drawer-chat-send-button:hover:not(:disabled) {
+  background: #0e71eb;
+}
+
+.drawer-chat-send-button:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+  color: #e5e7eb;
+}
+
+/* Mobile Responsive - Show drawer, hide desktop chat */
+@media (max-width: 768px) {
+  .chat-desktop {
+    display: none;
+  }
+
+  .chat-drawer {
+    display: block;
+  }
+}
+
 /* Tablet Breakpoint */
 @media (max-width: 1024px) {
   .sidebar {
