@@ -61,6 +61,7 @@ function App() {
   const [isParticipantsSheetOpen, setIsParticipantsSheetOpen] = useState(false);
 
   // Responsive layout detection - true if drawer should be used (mobile device OR small viewport)
+  // Updated: Chat drawer now conditionally renders instead of using CSS display properties
   const shouldUseDrawer = useResponsive(768);
 
   // Function to open participants sheet
