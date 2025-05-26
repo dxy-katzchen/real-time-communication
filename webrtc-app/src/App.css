@@ -407,6 +407,9 @@
     visibility 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94),
     backdrop-filter 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   backdrop-filter: blur(0px);
+  /* Prevent scroll pass-through */
+  overscroll-behavior: contain;
+  touch-action: none;
 }
 
 .participants-bottom-sheet.active {
@@ -444,6 +447,8 @@
   flex-direction: column;
   overflow: hidden;
   will-change: transform;
+  /* Allow scrolling only within the sheet */
+  touch-action: pan-y;
 }
 
 .participants-bottom-sheet.active .bottom-sheet-content {
@@ -520,6 +525,9 @@
   overflow-y: auto;
   padding: 0;
   max-height: calc(65vh - 70px);
+  /* Ensure smooth scrolling on mobile */
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 .participant-item {

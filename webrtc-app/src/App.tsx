@@ -107,6 +107,39 @@ function App() {
     };
   }, [isParticipantsSheetOpen, closeParticipantsSheet]);
 
+  // Prevent background scrolling when participants sheet is open
+  useEffect(() => {
+    if (isParticipantsSheetOpen || isParticipantsSheetClosing) {
+      // Prevent scrolling on the body
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+      document.body.style.height = '100%';
+      
+      // Prevent touch events from reaching background elements
+      const preventTouchMove = (e: TouchEvent) => {
+        // Allow touch events on the bottom sheet content
+        const target = e.target as Element;
+        const isInsideBottomSheet = target.closest('.bottom-sheet-content');
+        const isBottomSheetBackground = target.classList.contains('participants-bottom-sheet');
+        
+        if (!isInsideBottomSheet && !isBottomSheetBackground) {
+          e.preventDefault();
+        }
+      };
+
+      document.addEventListener('touchmove', preventTouchMove, { passive: false });
+      
+      return () => {
+        document.body.style.overflow = '';
+        document.body.style.position = '';
+        document.body.style.width = '';
+        document.body.style.height = '';
+        document.removeEventListener('touchmove', preventTouchMove);
+      };
+    }
+  }, [isParticipantsSheetOpen, isParticipantsSheetClosing]);
+
   // Socket setup
   const { socketRef, connectionStatus } = useSocketSetup();
 
@@ -655,8 +688,20 @@ function App() {
             closeParticipantsSheet();
           }
         }}
+        onTouchStart={(e) => {
+          // Prevent background scroll when touching the backdrop
+          if (e.target === e.currentTarget) {
+            e.preventDefault();
+          }
+        }}
       >
-        <div className="bottom-sheet-content">
+        <div 
+          className="bottom-sheet-content"
+          onTouchMove={(e) => {
+            // Allow scroll within the sheet content
+            e.stopPropagation();
+          }}
+        >
           <div className="bottom-sheet-handle"></div>
           <div className="bottom-sheet-header">
             <h5>Participants ({participants.length})</h5>
