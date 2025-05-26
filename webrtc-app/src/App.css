@@ -30,24 +30,6 @@
   background: linear-gradient(135deg, #2d8cff 0%, #1976d2 100%);
 }
 
-.status-bar--connected {
-  background-color: #ffffff;
-}
-
-.status-bar--connected .status-text {
-  color: #28a745;
-  font-weight: 600;
-}
-
-.status-bar--disconnected {
-  background-color: #ffffff;
-}
-
-.status-bar--disconnected .status-text {
-  color: #dc3545;
-  font-weight: 600;
-}
-
 /* Status bar layout */
 .status-bar-content {
   display: flex;
@@ -56,9 +38,56 @@
   font-weight: 500;
 }
 
-.status-text {
-  font-size: 14px;
-  font-weight: 600;
+/* Connection Status Indicator */
+.connection-status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.status-dot--connected {
+  background-color: #28a745;
+  box-shadow: 0 0 8px rgba(40, 167, 69, 0.4);
+}
+
+.status-dot--disconnected {
+  background-color: #dc3545;
+  box-shadow: 0 0 8px rgba(220, 53, 69, 0.4);
+}
+
+.status-dot--connecting {
+  background-color: #ffc107;
+  box-shadow: 0 0 8px rgba(255, 193, 7, 0.4);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.status-label {
+  font-size: 13px;
+  color: #6c757d;
+  font-weight: 500;
 }
 
 /* Copy meeting button styles */
@@ -321,6 +350,140 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
+/* Participants button badge - only visible on mobile */
+.control-button--participants {
+  background-color: #6c757d;
+  position: relative;
+  display: none; /* Hidden on desktop */
+}
+
+.control-button--participants:hover {
+  background-color: #5a6268;
+}
+
+.control-button--participants.active {
+  background-color: #2d8cff;
+}
+
+.participants-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background-color: #28a745;
+  color: white;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Participants Bottom Sheet - only visible on mobile */
+.participants-bottom-sheet {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  display: none; /* Hidden on desktop */
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+
+.participants-bottom-sheet.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.bottom-sheet-content {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background-color: #ffffff;
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.15);
+  transform: translateY(100%);
+  transition: transform 0.3s ease;
+  max-height: 60vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.participants-bottom-sheet.active .bottom-sheet-content {
+  transform: translateY(0);
+}
+
+.bottom-sheet-handle {
+  width: 40px;
+  height: 4px;
+  background-color: #e9ecef;
+  border-radius: 2px;
+  margin: 12px auto 8px;
+  opacity: 0.6;
+}
+
+.bottom-sheet-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e9ecef;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(135deg, #2d8cff 0%, #1976d2 100%);
+  color: white;
+  border-radius: 16px 16px 0 0;
+}
+
+.bottom-sheet-header h5 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.bottom-sheet-close {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bottom-sheet-close:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+  color: white;
+}
+
+.bottom-sheet-participants {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+  max-height: calc(60vh - 80px);
+}
+
+.participant-item {
+  display: flex;
+  flex-direction: column;
+}
+
 /* Local video container */
 .local-video-container {
   position: relative;
@@ -441,3 +604,340 @@
 }
 
 /* Remove the remaining dark chat styles - they are now handled in Chat.css */
+
+/* ============================================
+   MOBILE RESPONSIVENESS - Zoom-like Design
+   ============================================ */
+
+/* Mobile Navigation */
+.mobile-header {
+  display: none;
+  background-color: #ffffff;
+  border-bottom: 1px solid #e9ecef;
+  padding: 12px 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.mobile-header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.mobile-participants-toggle {
+  background: none;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #232333;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.mobile-participants-toggle:hover {
+  background-color: #f8f9fa;
+  border-color: #2d8cff;
+}
+
+.mobile-participants-toggle.active {
+  background-color: #2d8cff;
+  color: white;
+  border-color: #2d8cff;
+}
+
+/* Mobile Participants Overlay */
+.mobile-participants-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  display: none;
+}
+
+.mobile-participants-panel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 280px;
+  height: 100%;
+  background-color: #ffffff;
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.15);
+  transform: translateX(-100%);
+  transition: transform 0.3s ease;
+}
+
+.mobile-participants-overlay.active .mobile-participants-panel {
+  transform: translateX(0);
+}
+
+.mobile-participants-header {
+  padding: 16px;
+  border-bottom: 1px solid #e9ecef;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(135deg, #2d8cff 0%, #1976d2 100%);
+  color: white;
+}
+
+.mobile-participants-close {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.mobile-participants-close:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.mobile-participants-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+/* Tablet Breakpoint */
+@media (max-width: 1024px) {
+  .sidebar {
+    width: 200px;
+  }
+
+  .control-button--circular {
+    width: 50px;
+    height: 50px;
+    font-size: 16px;
+  }
+
+  .controls {
+    padding: 16px 20px;
+    gap: 12px;
+  }
+}
+
+/* Mobile Breakpoint - Portrait Tablets and Large Phones */
+@media (max-width: 768px) {
+  /* Hide mobile header as requested */
+  .mobile-header {
+    display: none;
+  }
+
+  /* Show participants button on mobile */
+  .control-button--participants {
+    display: flex !important;
+  }
+
+  /* Show participants bottom sheet on mobile */
+  .participants-bottom-sheet.active {
+    display: block;
+  }
+
+  /* Hide desktop sidebar */
+  .sidebar {
+    display: none;
+  }
+
+  /* Show mobile participants overlay when active */
+  .mobile-participants-overlay.active {
+    display: block;
+  }
+
+  /* Adjust main content for full width without mobile header */
+  .main-content {
+    height: calc(100vh - 140px); /* Only account for status bar and controls */
+  }
+
+  .main-video-container {
+    padding: 12px;
+  }
+
+  /* Optimize video display for mobile */
+  .main-video-display {
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .main-participant-name {
+    font-size: 14px;
+    padding: 8px 12px;
+  }
+
+  /* Touch-friendly controls */
+  .controls {
+    padding: 16px;
+    gap: 12px;
+    background-color: #ffffff;
+    border-top: 1px solid #e9ecef;
+    box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.1);
+  }
+
+  .control-button--circular {
+    width: 52px;
+    height: 52px;
+    font-size: 18px;
+  }
+
+  .control-button--leave {
+    padding: 12px 20px;
+    font-size: 14px;
+  }
+
+  /* Status bar adjustments */
+  .status-bar {
+    padding: 10px 16px;
+  }
+
+  .status-bar-content {
+    font-size: 13px;
+  }
+
+  .copy-meeting-button {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+}
+
+/* Mobile Breakpoint - Small Phones */
+@media (max-width: 480px) {
+  /* Further optimize for small screens without mobile header */
+  .main-content {
+    height: calc(100vh - 130px); /* No mobile header */
+  }
+
+  .main-video-container {
+    padding: 8px;
+  }
+
+  .main-participant-name {
+    font-size: 13px;
+    padding: 6px 10px;
+  }
+
+  /* Compact controls for small screens */
+  .controls {
+    padding: 12px;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .control-button--circular {
+    width: 48px;
+    height: 48px;
+    font-size: 16px;
+  }
+
+  .control-button--leave {
+    padding: 10px 16px;
+    font-size: 13px;
+    flex-basis: 100%;
+    margin-top: 8px;
+  }
+
+  /* Status bar for small screens */
+  .status-bar {
+    padding: 8px 12px;
+  }
+
+  .status-bar-content {
+    font-size: 12px;
+    gap: 8px;
+  }
+
+  .copy-meeting-button {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+
+  /* Reduce mobile participants panel width */
+  .mobile-participants-panel {
+    width: 260px;
+  }
+
+  .mobile-participants-header {
+    padding: 12px;
+  }
+
+  .mobile-participants-content {
+    padding: 8px;
+  }
+}
+
+/* Landscape Mobile Optimization */
+@media (max-width: 768px) and (orientation: landscape) {
+  .main-content {
+    height: calc(100vh - 120px); /* No mobile header */
+  }
+
+  .controls {
+    padding: 12px 16px;
+  }
+
+  .control-button--circular {
+    width: 44px;
+    height: 44px;
+    font-size: 16px;
+  }
+
+  .control-button--leave {
+    padding: 8px 16px;
+    margin-top: 0;
+    flex-basis: auto;
+  }
+}
+
+/* Very Small Screens - Compact Mode */
+@media (max-width: 360px) {
+  .mobile-participants-panel {
+    width: 240px;
+  }
+
+  .control-button--circular {
+    width: 44px;
+    height: 44px;
+    font-size: 15px;
+  }
+
+  .controls {
+    gap: 6px;
+  }
+
+  .main-video-container {
+    padding: 6px;
+  }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  .control-button {
+    min-height: 44px; /* Apple's recommended minimum touch target */
+  }
+
+  .mobile-participants-toggle {
+    min-height: 44px;
+    padding: 10px 14px;
+  }
+
+  .copy-meeting-button {
+    min-height: 36px;
+  }
+}
+
+/* High DPI displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .main-video {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+}
