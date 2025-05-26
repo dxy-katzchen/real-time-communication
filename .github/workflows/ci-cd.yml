@@ -298,28 +298,7 @@ jobs:
               fi
             fi
 
-            # Install and configure MongoDB if not already installed (one-time setup)
-            if ! command -v mongod &> /dev/null; then
-              echo "Installing MongoDB..."
-              sudo tee /etc/yum.repos.d/mongodb-org-7.0.repo > /dev/null <<EOF
-            [mongodb-org-7.0]
-            name=MongoDB Repository
-            baseurl=https://repo.mongodb.org/yum/amazon/2023/mongodb-org/7.0/x86_64/
-            gpgcheck=1
-            enabled=1
-            gpgkey=https://www.mongodb.org/static/pgp/server-7.0.asc
-            EOF
-              sudo dnf install -y mongodb-org
-              sudo systemctl enable mongod
-            fi
-            sudo systemctl start mongod || true
 
-            # Install nginx if not already installed (one-time setup)
-            if ! command -v nginx &> /dev/null; then
-              echo "Installing Nginx..."
-              sudo dnf install -y nginx
-              sudo systemctl enable nginx
-            fi
 
             # Ensure all services are running
             if [ "$BACKEND_CHANGED" == "true" ] || [ "$CONFIG_CHANGED" == "true" ]; then
