@@ -185,19 +185,27 @@ src/
 {
   "_id": ObjectId,
   "username": String,
-  "email": String,
+  "displayname": String,
   "created_at": Date
+}
+
+// Patrticipants Collection
+{
+  "_id": ObjectId,
+  "meetingId": String,
+  "userId": String,
+  "joinedAt": Date,
+  "isHost": Boolean
 }
 
 // Meetings Collection
 {
   "_id": ObjectId,
-  "meetingId": String,        // Unique meeting identifier
-  "hostId": String,           // User ID of meeting host
-  "participants": [String],   // Array of participant user IDs
-  "created_at": Date,
-  "ended_at": Date,
-  "status": String            // "active" | "ended"
+  "name": String,
+  "hostId": String,
+  "createdAt": Date,
+  "active": Boolean,
+  "endedAt": Date
 }
 ```
 
