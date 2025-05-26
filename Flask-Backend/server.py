@@ -450,5 +450,16 @@ if __name__ == "__main__":
         print("Production mode detected. Use Gunicorn to run this application.")
         print("Example: gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:5002 server:app")
     else:
-        # Development mode
-        socketio.run(app, host="0.0.0.0", port=5002, debug=True, allow_unsafe_werkzeug=True)
+        # Development mode with security considerations
+        # Only bind to localhost in development unless explicitly overridden
+        dev_host = os.getenv("DEV_HOST", "127.0.0.1")  # Default to localhost for security
+        dev_debug = os.getenv("DEV_DEBUG", "false").lower() == "true"  # Default debug off
+        
+        print(f"Development mode: host={dev_host}, debug={dev_debug}")
+        socketio.run(
+            app, 
+            host=dev_host, 
+            port=5002, 
+            debug=dev_debug, 
+            allow_unsafe_werkzeug=dev_debug
+        )
