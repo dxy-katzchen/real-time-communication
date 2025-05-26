@@ -193,7 +193,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: frontend-build
-          path: ./webrtc-app/dist
+          path: ./frontend-dist
 
       - name: Download backend artifacts
         if: needs.detect-changes.outputs.backend-changed == 'true'
@@ -215,7 +215,7 @@ jobs:
           # Copy files based on what changed
           if [ "${{ needs.detect-changes.outputs.frontend-changed }}" == "true" ]; then
             echo "Including frontend files..."
-            cp -r ./webrtc-app/dist ./deploy-files/webrtc-dist
+            cp -r ./frontend-dist ./deploy-files/webrtc-dist
           fi
 
           if [ "${{ needs.detect-changes.outputs.backend-changed }}" == "true" ]; then
@@ -262,10 +262,19 @@ jobs:
 
             # Backup current deployment if this is a major deployment
             if [ "$FRONTEND_CHANGED" == "true" ] || [ "$BACKEND_CHANGED" == "true" ]; then
+              echo "Creating backup of current deployment..."
+              sudo rm -rf /opt/webrtc-app/backup
+              sudo mkdir -p /opt/webrtc-app/backup
+              
+              # Backup backend files if they exist
               if [ -d "/opt/webrtc-app/current" ]; then
-                echo "Creating backup of current deployment..."
-                sudo rm -rf /opt/webrtc-app/backup
-                sudo cp -r /opt/webrtc-app/current /opt/webrtc-app/backup
+                sudo cp -r /opt/webrtc-app/current /opt/webrtc-app/backup/backend
+              fi
+              
+              # Backup frontend files if they exist
+              if [ -d "/usr/share/nginx/html" ] && [ "$(ls -A /usr/share/nginx/html 2>/dev/null)" ]; then
+                sudo mkdir -p /opt/webrtc-app/backup/frontend
+                sudo cp -r /usr/share/nginx/html/* /opt/webrtc-app/backup/frontend/
               fi
             fi
 
@@ -447,13 +456,18 @@ jobs:
 
             # Rollback to backup if it exists
             if [ -d "/opt/webrtc-app/backup" ]; then
-              sudo rm -rf /opt/webrtc-app/current
-              sudo mv /opt/webrtc-app/backup /opt/webrtc-app/current
+              echo "Rolling back to previous version..."
               
-              # Restore frontend files if they were changed
-              if [ "$FRONTEND_CHANGED" == "true" ]; then
+              # Rollback backend if it was changed and backup exists
+              if [ "$BACKEND_CHANGED" == "true" ] && [ -d "/opt/webrtc-app/backup/backend" ]; then
+                sudo rm -rf /opt/webrtc-app/current
+                sudo cp -r /opt/webrtc-app/backup/backend /opt/webrtc-app/current
+              fi
+              
+              # Rollback frontend if it was changed and backup exists
+              if [ "$FRONTEND_CHANGED" == "true" ] && [ -d "/opt/webrtc-app/backup/frontend" ]; then
                 sudo rm -rf /usr/share/nginx/html/*
-                sudo cp -r /opt/webrtc-app/current/webrtc-app/dist/* /usr/share/nginx/html/
+                sudo cp -r /opt/webrtc-app/backup/frontend/* /usr/share/nginx/html/
               fi
               
               # Restart services based on what was deployed
