@@ -511,9 +511,34 @@ export const useWebRTCConnection = ({
         // Ensure local stream is available before creating answer
         if (!localStreamRef.current) {
           console.error(
-            `No local stream available when handling offer from ${data.fromSocket}`
+            `No local stream available when handling offer from ${data.fromSocket}. This will cause black video feeds.`
           );
-          return;
+          console.log(
+            "Waiting for local stream to be ready before proceeding..."
+          );
+
+          // Wait for local stream to be ready (with timeout)
+          let retryCount = 0;
+          const maxRetries = 20; // 2 seconds total wait time
+          const waitForLocalStream = async (): Promise<boolean> => {
+            while (retryCount < maxRetries && !localStreamRef.current) {
+              await new Promise((resolve) => setTimeout(resolve, 100));
+              retryCount++;
+            }
+            return !!localStreamRef.current;
+          };
+
+          const streamReady = await waitForLocalStream();
+          if (!streamReady) {
+            console.error(
+              `Timeout waiting for local stream from ${data.fromSocket}. Aborting offer handling.`
+            );
+            return;
+          }
+
+          console.log(
+            "Local stream is now ready, proceeding with offer handling"
+          );
         }
 
         // Check if tracks were added during peer connection creation

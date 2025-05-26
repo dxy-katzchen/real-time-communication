@@ -29,13 +29,25 @@ export const useEffects = ({
   joinRoom,
   setParticipants,
 }: UseEffectsProps) => {
-  // Start media when joining room
+  // Start media when joining room, then join socket room when media is ready
   useEffect(() => {
-    if (inRoom && !localStreamRef.current) {
+    if (inRoom && !localStreamRef.current && userId) {
       console.log("Starting media for room join");
-      startMedia();
+      startMedia()
+        .then(() => {
+          console.log(
+            "Media initialization completed, now joining socket room"
+          );
+          joinRoom();
+        })
+        .catch((error) => {
+          console.error("Failed to initialize media:", error);
+          // Still join room even if media fails, but log the issue
+          console.log("Joining room despite media initialization failure");
+          joinRoom();
+        });
     }
-  }, [inRoom, localStreamRef, startMedia]);
+  }, [inRoom, localStreamRef, startMedia, joinRoom, userId]);
 
   // Cleanup media tracks when leaving room (inRoom becomes false)
   useEffect(() => {
@@ -47,7 +59,7 @@ export const useEffects = ({
       });
       localStreamRef.current = null;
     }
-  }, [inRoom]); // Only depend on inRoom state
+  }, [inRoom, localStreamRef]); // Include localStreamRef in dependencies
 
   // Cleanup media tracks only on component unmount
   useEffect(() => {
@@ -64,13 +76,6 @@ export const useEffects = ({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty dependency array ensures this only runs on unmount
-
-  // Join room when inRoom changes
-  useEffect(() => {
-    if (inRoom && userId) {
-      joinRoom();
-    }
-  }, [inRoom, joinRoom, userId]);
 
   // Fetch participants periodically using API service
   useEffect(() => {

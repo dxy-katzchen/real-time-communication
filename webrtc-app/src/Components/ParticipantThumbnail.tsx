@@ -93,15 +93,8 @@ export const ParticipantThumbnail: React.FC<{
         return;
       }
 
-      // Check if video is ready
-      if (videoElement.readyState < 2) {
-        console.log(`Video not ready for ${displayName}, waiting...`);
-        setTimeout(playVideo, 200);
-        return;
-      }
-
       playAttemptRef.current++;
-      console.log(`Play attempt ${playAttemptRef.current} for ${displayName}`);
+      console.log(`Play attempt ${playAttemptRef.current} for ${displayName}, readyState: ${videoElement.readyState}`);
 
       try {
         await videoElement.play();
@@ -120,13 +113,13 @@ export const ParticipantThumbnail: React.FC<{
           // Try different strategies
           if (playAttemptRef.current === 1) {
             // Strategy 1: Try with very low volume
-            videoElement.volume = 0.01;
+            if (!isLocal) videoElement.volume = 0.01;
           } else if (playAttemptRef.current === 2) {
             // Strategy 2: Try muted first, then unmute
             videoElement.muted = true;
           }
 
-          setTimeout(playVideo, playAttemptRef.current * 500); // Increasing delay
+          setTimeout(playVideo, 500); // Fixed delay
         } else {
           console.error(`All play attempts failed for ${displayName}`);
           setHasError(true);
@@ -174,7 +167,8 @@ export const ParticipantThumbnail: React.FC<{
     };
 
     const handleCanPlay = () => {
-      console.log(`Video can play for ${displayName}`);
+      console.log(`Video can play for ${displayName}, readyState: ${videoElement?.readyState}`);
+      setIsLoading(false); // Clear loading state when video can play
       if (!isLocal || playAttemptRef.current === 0) {
         playVideo();
       }
@@ -232,6 +226,16 @@ export const ParticipantThumbnail: React.FC<{
     videoElement.addEventListener("waiting", handleWaiting);
     videoElement.addEventListener("canplaythrough", handleCanPlayThrough);
 
+    // Set a timeout to clear loading state if it gets stuck
+    const loadingTimeout = setTimeout(() => {
+      if (videoElement && stream) {
+        console.log(`Video loading timeout for ${displayName} - clearing loading state`);
+        setIsLoading(false);
+        // Try to play anyway
+        playVideo();
+      }
+    }, 3000); // 3 second timeout
+
     // For local video, start playing immediately
     if (isLocal) {
       playVideo();
@@ -239,6 +243,7 @@ export const ParticipantThumbnail: React.FC<{
 
     // Cleanup function
     return () => {
+      clearTimeout(loadingTimeout);
       if (videoElement) {
         videoElement.removeEventListener(
           "loadedmetadata",

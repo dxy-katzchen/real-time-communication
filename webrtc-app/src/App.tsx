@@ -234,8 +234,64 @@ function App() {
       // User has switched to themselves as main view
       if (localVideo.current.srcObject !== localStreamRef.current) {
         console.log("Setting local stream to main video element");
-        localVideo.current.srcObject = localStreamRef.current;
-        localVideo.current.play().catch(console.error);
+        const videoElement = localVideo.current;
+        const stream = localStreamRef.current;
+
+        // Clear any existing stream first
+        if (videoElement.srcObject) {
+          videoElement.pause();
+          videoElement.srcObject = null;
+        }
+
+        // Set up new stream
+        videoElement.srcObject = stream;
+        videoElement.playsInline = true;
+        videoElement.muted = true; // Local video should always be muted
+
+        // Enhanced play function for local video
+        const playLocalVideo = async () => {
+          if (!videoElement || !stream) return;
+
+          try {
+            await videoElement.play();
+            console.log("Local main video started playing");
+          } catch (playError) {
+            console.warn("Local main video autoplay failed:", playError);
+            
+            // For local video, we can be more aggressive with retry
+            setTimeout(async () => {
+              try {
+                await videoElement.play();
+                console.log("Local main video started playing after retry");
+              } catch (retryError) {
+                console.error("Local main video play retry failed:", retryError);
+                
+                // Set up click listener to play on user interaction
+                const playOnClick = async () => {
+                  try {
+                    await videoElement.play();
+                    console.log("Local main video started after user interaction");
+                    document.removeEventListener("click", playOnClick);
+                  } catch (interactionError) {
+                    console.error("Local main video play after interaction failed:", interactionError);
+                  }
+                };
+                document.addEventListener("click", playOnClick, { once: true });
+              }
+            }, 500);
+          }
+        };
+
+        // Wait for metadata to be loaded before playing
+        if (videoElement.readyState >= 1) {
+          playLocalVideo();
+        } else {
+          const handleLoadedMetadata = () => {
+            playLocalVideo();
+            videoElement.removeEventListener("loadedmetadata", handleLoadedMetadata);
+          };
+          videoElement.addEventListener("loadedmetadata", handleLoadedMetadata);
+        }
       }
     }
   }, [mainParticipant, localStreamRef, localVideo]);
@@ -361,7 +417,6 @@ function App() {
               <div className="local-video-container">
                 <video
                   ref={localVideo}
-                  autoPlay
                   muted
                   playsInline
                   className="main-video"
