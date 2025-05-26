@@ -257,23 +257,31 @@ function App() {
             console.log("Local main video started playing");
           } catch (playError) {
             console.warn("Local main video autoplay failed:", playError);
-            
+
             // For local video, we can be more aggressive with retry
             setTimeout(async () => {
               try {
                 await videoElement.play();
                 console.log("Local main video started playing after retry");
               } catch (retryError) {
-                console.error("Local main video play retry failed:", retryError);
-                
+                console.error(
+                  "Local main video play retry failed:",
+                  retryError
+                );
+
                 // Set up click listener to play on user interaction
                 const playOnClick = async () => {
                   try {
                     await videoElement.play();
-                    console.log("Local main video started after user interaction");
+                    console.log(
+                      "Local main video started after user interaction"
+                    );
                     document.removeEventListener("click", playOnClick);
                   } catch (interactionError) {
-                    console.error("Local main video play after interaction failed:", interactionError);
+                    console.error(
+                      "Local main video play after interaction failed:",
+                      interactionError
+                    );
                   }
                 };
                 document.addEventListener("click", playOnClick, { once: true });
@@ -288,7 +296,10 @@ function App() {
         } else {
           const handleLoadedMetadata = () => {
             playLocalVideo();
-            videoElement.removeEventListener("loadedmetadata", handleLoadedMetadata);
+            videoElement.removeEventListener(
+              "loadedmetadata",
+              handleLoadedMetadata
+            );
           };
           videoElement.addEventListener("loadedmetadata", handleLoadedMetadata);
         }
@@ -484,11 +495,49 @@ function App() {
               );
 
               return remoteParticipantList.map((participant) => {
-                const info = participants.find(
+                // Enhanced fallback mechanism for participant lookup (sidebar)
+                let info = participants.find(
                   (p) => p.userId === participant.userId
                 );
-                const displayName =
-                  info?.displayName || info?.username || "Unknown";
+
+                // Fallback 1: Try matching by socketId if userId lookup fails
+                if (!info) {
+                  info = participants.find(
+                    (p) => p.userId === participant.socketId
+                  );
+                }
+
+                // Fallback 2: Try to find any participant that might match
+                if (!info) {
+                  info = participants.find(
+                    (p) =>
+                      p.username === participant.userId ||
+                      p.displayName === participant.userId
+                  );
+                }
+
+                // Generate display name with improved fallbacks
+                let displayName = info?.displayName || info?.username;
+
+                // If still no name found, create a more user-friendly fallback
+                if (!displayName) {
+                  const identifier = participant.userId || participant.socketId;
+                  if (identifier) {
+                    // If it looks like a MongoDB ObjectId or similar, create a friendly name
+                    if (
+                      /^[a-f\d]{24}$/i.test(identifier) ||
+                      identifier.length > 15
+                    ) {
+                      displayName = `User ${identifier
+                        .slice(-4)
+                        .toUpperCase()}`;
+                    } else {
+                      displayName = identifier;
+                    }
+                  } else {
+                    displayName = "Guest";
+                  }
+                }
                 return (
                   <ParticipantThumbnail
                     key={participant.socketId}
@@ -652,10 +701,51 @@ function App() {
 
             {/* Remote participants */}
             {Array.from(remoteParticipants.values()).map((participant) => {
-              const participantInfo = participants.find(
+              // Enhanced fallback mechanism for participant lookup
+              let participantInfo = participants.find(
                 (p) => p.userId === participant.userId
               );
-              const displayName = participantInfo?.displayName || "Unknown";
+
+              // Fallback 1: Try matching by socketId if userId lookup fails
+              if (!participantInfo) {
+                participantInfo = participants.find(
+                  (p) => p.userId === participant.socketId
+                );
+              }
+
+              // Fallback 2: Try to find any participant that might match
+              if (!participantInfo) {
+                // Look for a participant with a similar identifier
+                participantInfo = participants.find(
+                  (p) =>
+                    p.username === participant.userId ||
+                    p.displayName === participant.userId
+                );
+              }
+
+              // Generate display name with improved fallbacks
+              let displayName =
+                participantInfo?.displayName || participantInfo?.username;
+
+              // If still no name found, create a more user-friendly fallback
+              if (!displayName) {
+                // Extract a readable identifier from userId or socketId
+                const identifier = participant.userId || participant.socketId;
+                if (identifier) {
+                  // If it looks like a MongoDB ObjectId or similar, create a friendly name
+                  if (
+                    /^[a-f\d]{24}$/i.test(identifier) ||
+                    identifier.length > 15
+                  ) {
+                    displayName = `User ${identifier.slice(-4).toUpperCase()}`;
+                  } else {
+                    displayName = identifier;
+                  }
+                } else {
+                  displayName = "Guest";
+                }
+              }
+
               const isParticipantHost = participantInfo?.isHost || false;
 
               return (
