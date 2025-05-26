@@ -57,6 +57,23 @@ function App() {
   // Participants bottom sheet state
   const [isParticipantsSheetOpen, setIsParticipantsSheetOpen] = useState(false);
 
+  // Smooth closing function for participants sheet
+  const closeParticipantsSheet = () => {
+    // Start the closing animation
+    const sheet = document.querySelector(".participants-bottom-sheet");
+    if (sheet) {
+      sheet.classList.add("closing");
+    }
+
+    // Wait for animation to complete before actually closing
+    setTimeout(() => {
+      setIsParticipantsSheetOpen(false);
+      if (sheet) {
+        sheet.classList.remove("closing");
+      }
+    }, 150); // Match the faster 0.15s CSS closing animation duration
+  };
+
   // Check for meeting link in URL parameters
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -523,7 +540,7 @@ function App() {
         }`}
         onClick={(e) => {
           if (e.target === e.currentTarget) {
-            setIsParticipantsSheetOpen(false);
+            closeParticipantsSheet();
           }
         }}
       >
@@ -532,30 +549,50 @@ function App() {
           <div className="bottom-sheet-header">
             <h5>Participants ({participants.length})</h5>
             <button
-              onClick={() => setIsParticipantsSheetOpen(false)}
+              onClick={closeParticipantsSheet}
               className="bottom-sheet-close"
             >
               ✕
             </button>
           </div>
           <div className="bottom-sheet-participants">
-            {/* Local user thumbnail */}
-            <div className="participant-item">
-              <ParticipantThumbnail
-                isLocal={true}
-                stream={localStreamRef.current}
-                userId={userId || ""}
-                displayName={username || ""}
-                isHost={isHost}
-                isMuted={isMuted}
-                isVideoOff={isVideoOff}
-                isScreenSharing={isScreenSharing}
-                onClick={() => {
-                  setMainParticipant(null);
-                  setIsParticipantsSheetOpen(false);
-                }}
-                isActive={mainParticipant === null}
-              />
+            {/* Local user */}
+            <div
+              className={`participant-item ${
+                mainParticipant === null ? "active" : ""
+              }`}
+              onClick={() => {
+                setMainParticipant(null);
+                closeParticipantsSheet();
+              }}
+            >
+              <div
+                className={`participant-avatar local ${isHost ? "host" : ""}`}
+              >
+                {(username || "U").charAt(0).toUpperCase()}
+              </div>
+              <div className="participant-info">
+                <div
+                  className={`participant-name ${isHost ? "host" : ""} local`}
+                >
+                  {username || "Unknown"}
+                </div>
+                <div className="participant-status">
+                  {isMuted && (
+                    <span className="status-indicator muted">🔇 Muted</span>
+                  )}
+                  {isVideoOff && (
+                    <span className="status-indicator video-off">
+                      📹 Video Off
+                    </span>
+                  )}
+                  {isScreenSharing && (
+                    <span className="status-indicator screen-sharing">
+                      🖥️ Screen Sharing
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Remote participants */}
@@ -563,23 +600,51 @@ function App() {
               const participantInfo = participants.find(
                 (p) => p.userId === participant.userId
               );
+              const displayName = participantInfo?.displayName || "Unknown";
+              const isParticipantHost = participantInfo?.isHost || false;
+
               return (
-                <div key={participant.socketId} className="participant-item">
-                  <ParticipantThumbnail
-                    isLocal={false}
-                    stream={participant.stream}
-                    userId={participant.userId}
-                    displayName={participantInfo?.displayName || "Unknown"}
-                    isHost={participantInfo?.isHost || false}
-                    isMuted={participant.isMuted || false}
-                    isVideoOff={participant.isVideoOff || false}
-                    isScreenSharing={participant.isScreenSharing || false}
-                    onClick={() => {
-                      setMainParticipant(participant.userId);
-                      setIsParticipantsSheetOpen(false);
-                    }}
-                    isActive={mainParticipant === participant.userId}
-                  />
+                <div
+                  key={participant.socketId}
+                  className={`participant-item ${
+                    mainParticipant === participant.userId ? "active" : ""
+                  }`}
+                  onClick={() => {
+                    setMainParticipant(participant.userId);
+                    closeParticipantsSheet();
+                  }}
+                >
+                  <div
+                    className={`participant-avatar ${
+                      isParticipantHost ? "host" : ""
+                    }`}
+                  >
+                    {displayName.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="participant-info">
+                    <div
+                      className={`participant-name ${
+                        isParticipantHost ? "host" : ""
+                      }`}
+                    >
+                      {displayName}
+                    </div>
+                    <div className="participant-status">
+                      {participant.isMuted && (
+                        <span className="status-indicator muted">🔇 Muted</span>
+                      )}
+                      {participant.isVideoOff && (
+                        <span className="status-indicator video-off">
+                          📹 Video Off
+                        </span>
+                      )}
+                      {participant.isScreenSharing && (
+                        <span className="status-indicator screen-sharing">
+                          🖥️ Screen Sharing
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
               );
             })}
