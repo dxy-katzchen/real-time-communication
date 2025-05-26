@@ -56,7 +56,30 @@ function App() {
 
   // Participants bottom sheet state
   const [isParticipantsSheetOpen, setIsParticipantsSheetOpen] = useState(false);
-  const [isParticipantsSheetClosing, setIsParticipantsSheetClosing] = useState(false);
+  const [isParticipantsSheetClosing, setIsParticipantsSheetClosing] =
+    useState(false);
+
+  // Function to open participants sheet
+  const openParticipantsSheet = () => {
+    // Prevent opening if already open or closing
+    if (isParticipantsSheetOpen || isParticipantsSheetClosing) return;
+
+    // Reset any previous state and cleanup classes
+    const sheet = document.querySelector(".participants-bottom-sheet");
+    if (sheet) {
+      sheet.classList.remove("closing", "active");
+    }
+
+    setIsParticipantsSheetClosing(false);
+    setIsParticipantsSheetOpen(true);
+
+    // Force a repaint on iOS by using requestAnimationFrame
+    requestAnimationFrame(() => {
+      if (sheet) {
+        sheet.classList.add("active");
+      }
+    });
+  };
 
   // Smooth closing function for participants sheet
   const closeParticipantsSheet = () => {
@@ -78,6 +101,7 @@ function App() {
       setIsParticipantsSheetClosing(false);
       if (sheet) {
         sheet.classList.remove("closing");
+        sheet.classList.remove("active");
       }
     }, 150); // Match the faster 0.15s CSS closing animation duration
   };
@@ -107,35 +131,134 @@ function App() {
     };
   }, [isParticipantsSheetOpen, closeParticipantsSheet]);
 
+  // iOS-specific fix for participants sheet content rendering
+  useEffect(() => {
+    if (isParticipantsSheetOpen) {
+      // Force content refresh on iOS after opening
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      if (isIOS) {
+        setTimeout(() => {
+          const participantsContainer = document.querySelector(
+            ".bottom-sheet-participants"
+          ) as HTMLElement;
+          if (participantsContainer) {
+            // Force a style recalculation
+            participantsContainer.style.display = "none";
+            void participantsContainer.offsetHeight; // Trigger reflow
+            participantsContainer.style.display = "";
+          }
+        }, 50);
+      }
+    }
+  }, [isParticipantsSheetOpen, participants.length, remoteParticipants.size]);
+
   // Prevent background scrolling when participants sheet is open
   useEffect(() => {
     if (isParticipantsSheetOpen || isParticipantsSheetClosing) {
-      // Prevent scrolling on the body
-      document.body.style.overflow = 'hidden';
-      document.body.style.position = 'fixed';
-      document.body.style.width = '100%';
-      document.body.style.height = '100%';
-      
-      // Prevent touch events from reaching background elements
+      // Detect iOS
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+      // iOS-specific body lock
+      const originalStyle = {
+        overflow: document.body.style.overflow,
+        position: document.body.style.position,
+        width: document.body.style.width,
+        height: document.body.style.height,
+        touchAction: document.body.style.touchAction,
+      };
+
+      // Prevent scrolling on the body - iOS specific
+      document.body.style.overflow = "hidden";
+      document.body.style.position = "fixed";
+      document.body.style.width = "100%";
+      document.body.style.height = "100%";
+      document.body.style.touchAction = "none";
+
+      // iOS-specific touch prevention
       const preventTouchMove = (e: TouchEvent) => {
-        // Allow touch events on the bottom sheet content
         const target = e.target as Element;
-        const isInsideBottomSheet = target.closest('.bottom-sheet-content');
-        const isBottomSheetBackground = target.classList.contains('participants-bottom-sheet');
-        
-        if (!isInsideBottomSheet && !isBottomSheetBackground) {
+        const isInsideBottomSheet = target.closest(".bottom-sheet-content");
+        const isBottomSheetBackground = target.classList.contains(
+          "participants-bottom-sheet"
+        );
+        const isBottomSheetParticipants = target.closest(
+          ".bottom-sheet-participants"
+        );
+
+        // Allow scrolling only within the participants list
+        if (isBottomSheetParticipants) {
+          // Let the participants list handle its own scrolling
+          return;
+        }
+
+        // Prevent all other touch movements
+        if (!isInsideBottomSheet || isBottomSheetBackground) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      };
+
+      // iOS-specific passive: false is crucial for preventDefault to work
+      document.addEventListener("touchmove", preventTouchMove, {
+        passive: false,
+        capture: true,
+      });
+
+      // Also prevent touchstart on background for iOS
+      const preventTouchStart = (e: TouchEvent) => {
+        const target = e.target as Element;
+        const isInsideBottomSheet = target.closest(".bottom-sheet-content");
+
+        if (
+          !isInsideBottomSheet &&
+          target.classList.contains("participants-bottom-sheet")
+        ) {
           e.preventDefault();
         }
       };
 
-      document.addEventListener('touchmove', preventTouchMove, { passive: false });
-      
+      document.addEventListener("touchstart", preventTouchStart, {
+        passive: false,
+        capture: true,
+      });
+
+      // iOS-specific: prevent document scroll
+      if (isIOS) {
+        const preventDocumentScroll = (e: Event) => {
+          e.preventDefault();
+        };
+        document.addEventListener("scroll", preventDocumentScroll, {
+          passive: false,
+        });
+        window.addEventListener("scroll", preventDocumentScroll, {
+          passive: false,
+        });
+
+        return () => {
+          // Restore original styles
+          document.body.style.overflow = originalStyle.overflow;
+          document.body.style.position = originalStyle.position;
+          document.body.style.width = originalStyle.width;
+          document.body.style.height = originalStyle.height;
+          document.body.style.touchAction = originalStyle.touchAction;
+
+          document.removeEventListener("touchmove", preventTouchMove);
+          document.removeEventListener("touchstart", preventTouchStart);
+          document.removeEventListener("scroll", preventDocumentScroll);
+          window.removeEventListener("scroll", preventDocumentScroll);
+        };
+      }
+
       return () => {
-        document.body.style.overflow = '';
-        document.body.style.position = '';
-        document.body.style.width = '';
-        document.body.style.height = '';
-        document.removeEventListener('touchmove', preventTouchMove);
+        // Restore original styles
+        document.body.style.overflow = originalStyle.overflow;
+        document.body.style.position = originalStyle.position;
+        document.body.style.width = originalStyle.width;
+        document.body.style.height = originalStyle.height;
+        document.body.style.touchAction = originalStyle.touchAction;
+
+        document.removeEventListener("touchmove", preventTouchMove);
+        document.removeEventListener("touchstart", preventTouchStart);
       };
     }
   }, [isParticipantsSheetOpen, isParticipantsSheetClosing]);
@@ -633,7 +756,7 @@ function App() {
         </button>
 
         <button
-          onClick={() => setIsParticipantsSheetOpen(true)}
+          onClick={openParticipantsSheet}
           className={`control-button control-button--circular control-button--participants ${
             isParticipantsSheetOpen ? "active" : ""
           }`}
@@ -692,13 +815,25 @@ function App() {
           // Prevent background scroll when touching the backdrop
           if (e.target === e.currentTarget) {
             e.preventDefault();
+            e.stopPropagation();
+          }
+        }}
+        onTouchMove={(e) => {
+          // Prevent any touch movement on backdrop
+          if (e.target === e.currentTarget) {
+            e.preventDefault();
+            e.stopPropagation();
           }
         }}
       >
-        <div 
+        <div
           className="bottom-sheet-content"
+          onTouchStart={(e) => {
+            // Allow touches within the content
+            e.stopPropagation();
+          }}
           onTouchMove={(e) => {
-            // Allow scroll within the sheet content
+            // Only allow vertical scrolling within content
             e.stopPropagation();
           }}
         >
@@ -712,7 +847,10 @@ function App() {
               ✕
             </button>
           </div>
-          <div className="bottom-sheet-participants">
+          <div
+            className="bottom-sheet-participants"
+            key={`participants-${isParticipantsSheetOpen}-${participants.length}`}
+          >
             {/* Local user */}
             <div
               className={`participant-item ${

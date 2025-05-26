@@ -407,9 +407,16 @@
     visibility 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94),
     backdrop-filter 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   backdrop-filter: blur(0px);
-  /* Prevent scroll pass-through */
+  /* Prevent scroll pass-through - iOS specific fixes */
   overscroll-behavior: contain;
   touch-action: none;
+  /* iOS viewport handling */
+  -webkit-overflow-scrolling: touch;
+  /* Force hardware acceleration on iOS */
+  -webkit-transform: translate3d(0, 0, 0);
+  transform: translate3d(0, 0, 0);
+  /* Prevent iOS bounce scrolling */
+  overflow: hidden;
 }
 
 .participants-bottom-sheet.active {
@@ -428,6 +435,7 @@
 
 .participants-bottom-sheet.closing .bottom-sheet-content {
   transform: translateY(100%);
+  -webkit-transform: translateY(100%);
   animation: slideDownContent 0.15s cubic-bezier(0.55, 0.06, 0.68, 0.19);
 }
 
@@ -447,12 +455,20 @@
   flex-direction: column;
   overflow: hidden;
   will-change: transform;
-  /* Allow scrolling only within the sheet */
+  /* Allow scrolling only within the sheet - iOS specific */
   touch-action: pan-y;
+  /* iOS hardware acceleration */
+  -webkit-transform: translateY(100%);
+  -webkit-transition: -webkit-transform 0.05s
+    cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  /* iOS bounce prevention */
+  -webkit-overflow-scrolling: touch;
+  position: relative;
 }
 
 .participants-bottom-sheet.active .bottom-sheet-content {
   transform: translateY(0);
+  -webkit-transform: translateY(0);
   animation: slideUpContent 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
@@ -525,9 +541,13 @@
   overflow-y: auto;
   padding: 0;
   max-height: calc(65vh - 70px);
-  /* Ensure smooth scrolling on mobile */
+  /* Ensure smooth scrolling on mobile - iOS specific */
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
+  /* Prevent rubber band effect */
+  overscroll-behavior-y: contain;
+  /* iOS touch handling */
+  touch-action: pan-y;
 }
 
 .participant-item {
@@ -1199,6 +1219,18 @@
 
 /* Mobile Breakpoint - Portrait Tablets and Large Phones */
 @media (max-width: 768px) {
+  /* iOS-specific body fixes */
+  body {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    overflow: hidden;
+    position: fixed;
+    width: 100%;
+    height: 100%;
+  }
+
   /* Hide mobile header as requested */
   .mobile-header {
     display: none;
@@ -1211,15 +1243,27 @@
 
   /* Show participants bottom sheet on mobile - always show when open or closing */
   .participants-bottom-sheet {
-    display: block;
+    display: block !important;
+    /* iOS-specific z-index fix */
+    z-index: 9999;
+    /* Force hardware acceleration */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    /* Force layer creation */
+    will-change: opacity, visibility;
   }
 
   .participants-bottom-sheet.active {
-    display: block;
+    display: block !important;
+    /* Force visibility on iOS */
+    opacity: 1 !important;
+    visibility: visible !important;
   }
 
   .participants-bottom-sheet.closing {
-    display: block;
+    display: block !important;
+    /* Ensure content stays visible during closing */
+    visibility: visible !important;
   }
 
   /* Hide desktop sidebar */
@@ -1235,10 +1279,46 @@
   /* Adjust main content for full width without mobile header */
   .main-content {
     height: calc(100vh - 140px); /* Only account for status bar and controls */
+    /* iOS viewport fix */
+    height: calc(100vh - 140px - env(safe-area-inset-bottom));
+    height: calc(
+      100vh - 140px - constant(safe-area-inset-bottom)
+    ); /* iOS 11.0-11.2 */
+  }
+
+  /* iOS-specific fixes for bottom sheet content */
+  .bottom-sheet-content {
+    /* Force hardware acceleration */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    will-change: transform;
+    /* Ensure content is visible */
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .bottom-sheet-participants {
+    /* Force layer creation */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    will-change: scroll-position;
+    /* Ensure content is visible */
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .participant-item {
+    /* Force hardware acceleration for items */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
   }
 
   .main-video-container {
     padding: 12px;
+    /* iOS touch handling */
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
   }
 
   /* Optimize video display for mobile */
