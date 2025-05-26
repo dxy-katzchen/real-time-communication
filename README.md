@@ -379,7 +379,7 @@ style={{ transform: isScreenSharing ? "none" : "scaleX(-1)" }}
 - **Connection pooling** reuses peer connections
 - **ICE candidate buffering** handles timing issues
 - **Automatic retry** with exponential backoff
-- **Connection timeout** management (10s default)
+- **Connection timeout** management (5s default)
 
 ### Real-time Features
 
