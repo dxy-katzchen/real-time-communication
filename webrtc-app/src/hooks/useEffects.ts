@@ -74,6 +74,7 @@ export const useEffects = ({
         localStreamRef.current = null;
       }
     };
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty dependency array ensures this only runs on unmount
 
