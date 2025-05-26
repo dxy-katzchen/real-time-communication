@@ -454,12 +454,8 @@ if __name__ == "__main__":
         # Only bind to localhost in development unless explicitly overridden
         dev_host = os.getenv("DEV_HOST", "127.0.0.1")  # Default to localhost for security
         dev_debug = os.getenv("DEV_DEBUG", "false").lower() == "true"  # Default debug off
-        
+
         print(f"Development mode: host={dev_host}, debug={dev_debug}")
         socketio.run(
-            app, 
-            host=dev_host, 
-            port=5002, 
-            debug=dev_debug, 
-            allow_unsafe_werkzeug=dev_debug
+            app, host=dev_host, port=5002, debug=dev_debug, allow_unsafe_werkzeug=dev_debug
         )

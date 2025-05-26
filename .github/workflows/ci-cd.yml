@@ -3,10 +3,7 @@ name: CI/CD Pipeline
 on:
   push:
     branches:
-      - main
-  pull_request:
-    branches:
-      - main
+      - main  # Only run CI/CD on main branch pushes (production deployments)
 
 jobs:
   detect-changes:
@@ -56,7 +53,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v4
         with:
           python-version: "3.9"
 
@@ -102,7 +99,7 @@ jobs:
           "
 
       - name: Upload test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         if: always()
         with:
           name: backend-test-results
@@ -136,7 +133,7 @@ jobs:
         run: npm run build
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: frontend-build
           path: ./webrtc-app/dist
@@ -151,7 +148,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v4
         with:
           python-version: "3.9"
 
@@ -168,7 +165,7 @@ jobs:
           python -c "import server; print('Backend imports successfully')"
 
       - name: Upload backend artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: backend-build
           path: ./Flask-Backend
