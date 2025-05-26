@@ -244,6 +244,14 @@ jobs:
             cp ./nginx.conf ./deploy-files/
           fi
 
+      - name: Verify deployment files exist
+        run: |
+          echo "Listing deploy-files contents"; ls -la ./deploy-files
+          if [ -z "$(ls -A ./deploy-files)" ]; then
+            echo "❌ Deployment files are missing or empty. Aborting."
+            exit 1
+          fi
+
       - name: Upload deployment files to EC2
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -253,6 +261,7 @@ jobs:
           source: "./deploy-files/*"
           target: "/tmp"
           rm: true
+          debug: true
 
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v0.1.10
