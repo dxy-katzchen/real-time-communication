@@ -187,7 +187,7 @@ jobs:
           name: backend-build
           path: ./Flask-Backend
 
-      - name: Debug: List artifact contents before copy
+      - name: List artifact contents before copy
         run: |
           echo "Listing ./frontend-dist:"
           ls -l ./frontend-dist || echo "No ./frontend-dist"
