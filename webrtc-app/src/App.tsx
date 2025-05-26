@@ -330,17 +330,17 @@ function App() {
             ></div>
             <span className="status-label">{connectionStatus}</span>
           </div>
-          <span>
+          <span className="meeting-id-text">
             Meeting ID: {meetingId} {isHost && "(Host)"}
           </span>
-          <button
-            onClick={() => copyMeetingLink(meetingId)}
-            className="copy-meeting-button"
-            title="Copy Meeting Link"
-          >
-            {isCopied ? "✅ Copied!" : "🔗 Copy Link"}
-          </button>
         </div>
+        <button
+          onClick={() => copyMeetingLink(meetingId)}
+          className="copy-meeting-button"
+          title="Copy Meeting Link"
+        >
+          {isCopied ? "✅ Copied!" : "🔗 Copy Link"}
+        </button>
       </div>
 
       {/* Main content area */}

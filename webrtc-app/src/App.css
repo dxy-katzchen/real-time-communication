@@ -103,6 +103,12 @@
   transition: all 0.2s ease;
   outline: none;
   box-shadow: 0 2px 8px rgba(45, 140, 255, 0.3);
+  white-space: nowrap;
+}
+
+/* Meeting ID text - will be hidden on mobile */
+.meeting-id-text {
+  white-space: nowrap;
 }
 
 .copy-meeting-button:hover {
@@ -460,8 +466,7 @@
 }
 
 .participants-bottom-sheet.closing .bottom-sheet-handle {
-  animation: handleDisappear 0.15s cubic-bezier(0.55, 0.06, 0.68, 0.19)
-    forwards;
+  animation: handleDisappear 0.15s cubic-bezier(0.55, 0.06, 0.68, 0.19) forwards;
 }
 
 .bottom-sheet-handle:hover {
@@ -527,7 +532,8 @@
   overflow: hidden;
   opacity: 0;
   transform: translateY(10px);
-  animation: participantItemEnter 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  animation: participantItemEnter 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94)
+    forwards;
 }
 
 .participant-item:nth-child(1) {
@@ -554,13 +560,14 @@
   animation-delay: 0.2s;
 }
 
-.participant-item:nth-child(n+7) {
+.participant-item:nth-child(n + 7) {
   animation-delay: 0.23s;
 }
 
 /* Participant item exit animation during closing */
 .participants-bottom-sheet.closing .participant-item {
-  animation: participantItemExit 0.2s cubic-bezier(0.55, 0.06, 0.68, 0.19) forwards;
+  animation: participantItemExit 0.2s cubic-bezier(0.55, 0.06, 0.68, 0.19)
+    forwards;
 }
 
 .participants-bottom-sheet.closing .participant-item:nth-child(1) {
@@ -587,7 +594,7 @@
   animation-delay: 0.1s;
 }
 
-.participants-bottom-sheet.closing .participant-item:nth-child(n+7) {
+.participants-bottom-sheet.closing .participant-item:nth-child(n + 7) {
   animation-delay: 0.12s;
 }
 
@@ -1256,9 +1263,15 @@
     font-size: 13px;
   }
 
+  /* Hide meeting ID on mobile */
+  .meeting-id-text {
+    display: none;
+  }
+
   .copy-meeting-button {
     padding: 6px 12px;
     font-size: 12px;
+    white-space: nowrap;
   }
 }
 
@@ -1309,9 +1322,15 @@
     gap: 8px;
   }
 
+  /* Hide meeting ID on small mobile screens */
+  .meeting-id-text {
+    display: none;
+  }
+
   .copy-meeting-button {
     padding: 4px 8px;
     font-size: 11px;
+    white-space: nowrap;
   }
 
   /* Reduce mobile participants panel width */
@@ -1369,6 +1388,17 @@
 
   .main-video-container {
     padding: 6px;
+  }
+
+  /* Hide meeting ID on very small screens */
+  .meeting-id-text {
+    display: none;
+  }
+
+  .copy-meeting-button {
+    white-space: nowrap;
+    font-size: 10px;
+    padding: 3px 6px;
   }
 }
 
