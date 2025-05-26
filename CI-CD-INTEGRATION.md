@@ -1,11 +1,13 @@
 # CI/CD Integration Documentation
 
 ## Overview
+
 This project now includes comprehensive CI/CD integration with automated testing for the Flask backend. The test suite includes 57 tests covering user management, meeting operations, WebRTC signaling, Socket.IO events, and integration scenarios with 93% code coverage.
 
 ## Workflows
 
 ### 1. `test.yml` - Dedicated Testing Workflow
+
 - **Triggers**: Push/PR to main/develop branches with Flask-Backend changes
 - **Purpose**: Run comprehensive test suite across multiple Python versions
 - **Features**:
@@ -17,6 +19,7 @@ This project now includes comprehensive CI/CD integration with automated testing
   - Test artifact uploading
 
 ### 2. `ci-cd.yml` - Main CI/CD Pipeline
+
 - **Triggers**: Push to main (deployment), PR to main (validation)
 - **Purpose**: Build, test, and deploy application
 - **Features**:
@@ -27,6 +30,7 @@ This project now includes comprehensive CI/CD integration with automated testing
   - Health checks and rollback on failure
 
 ### 3. `pr-checks.yml` - Pull Request Validation
+
 - **Triggers**: PR to main/develop branches
 - **Purpose**: Validate changes without deploying
 - **Features**:
@@ -38,6 +42,7 @@ This project now includes comprehensive CI/CD integration with automated testing
 ## Test Suite Integration
 
 ### Makefile Commands Used in CI/CD:
+
 ```bash
 make test-unit         # Unit tests for API endpoints
 make test-socket       # Socket.IO event tests
@@ -46,17 +51,21 @@ make ci-test          # Full test suite with XML output for CI
 ```
 
 ### Coverage Requirements:
+
 - **Minimum Threshold**: 90% line coverage
 - **Current Coverage**: 93%
 - **Coverage Validation**: Automated in CI/CD pipeline
 
 ### Test Categories:
+
 1. **Unit Tests** (`test_user_api.py`, `test_meeting_api.py`)
+
    - User creation, validation, retrieval
    - Meeting lifecycle management
    - Input validation and error handling
 
 2. **Socket.IO Tests** (`test_socket_events.py`)
+
    - WebRTC signaling events
    - Chat messaging
    - User connection/disconnection
@@ -70,6 +79,7 @@ make ci-test          # Full test suite with XML output for CI
 ## Local Development
 
 ### Running Tests Locally:
+
 ```bash
 # Install dependencies
 make install
@@ -90,6 +100,7 @@ make test-coverage
 ```
 
 ### Prerequisites:
+
 - Python 3.9+
 - MongoDB running locally
 - Dependencies: `pip install -r requirements-test.txt`
@@ -97,6 +108,7 @@ make test-coverage
 ## Deployment Pipeline
 
 ### Automatic Deployment:
+
 1. **Trigger**: Push to `main` branch with backend changes
 2. **Process**:
    - Detect changes in Flask-Backend/
@@ -108,6 +120,7 @@ make test-coverage
    - Rollback on failure
 
 ### Manual Testing:
+
 ```bash
 # Test before committing
 make test
@@ -122,26 +135,31 @@ make test-coverage
 ## CI/CD Best Practices Implemented
 
 ### ✅ Test-Driven Deployment:
+
 - No deployment without passing tests
 - Multiple test environments (unit, integration, socket)
 - Coverage threshold enforcement
 
 ### ✅ Fast Feedback:
+
 - Parallel job execution
 - Cached dependencies
 - Targeted testing based on changes
 
 ### ✅ Reliability:
+
 - Health checks after deployment
 - Automatic rollback on failure
 - Artifact preservation for debugging
 
 ### ✅ Security:
+
 - Dependency vulnerability scanning
 - Code security analysis
 - Isolated test environments
 
 ### ✅ Monitoring:
+
 - Test result artifacts
 - Coverage reports
 - Deployment summaries
@@ -151,12 +169,14 @@ make test-coverage
 ### Common Issues:
 
 1. **MongoDB Connection Failures:**
+
    ```bash
    # Ensure MongoDB is running
    mongosh --eval "db.adminCommand('ping')"
    ```
 
 2. **Test Coverage Below Threshold:**
+
    ```bash
    # Generate detailed coverage report
    make test-coverage
@@ -170,6 +190,7 @@ make test-coverage
    ```
 
 ### CI/CD Monitoring:
+
 - Check GitHub Actions tab for workflow status
 - Review test artifacts for detailed results
 - Monitor coverage trends over time
