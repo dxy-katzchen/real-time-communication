@@ -1515,14 +1515,17 @@
   color: #e5e7eb;
 }
 
-/* Mobile Responsive - Show drawer, hide desktop chat */
+/* Desktop - Show desktop chat, hide drawer */
+@media (min-width: 769px) {
+  .chat-desktop {
+    display: block;
+  }
+}
+
+/* Mobile Responsive - Drawer styles only (conditional rendering handles visibility) */
 @media (max-width: 768px) {
   .chat-desktop {
     display: none;
-  }
-
-  .chat-drawer {
-    display: block;
   }
 }
 
