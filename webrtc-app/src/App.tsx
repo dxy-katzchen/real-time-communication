@@ -14,6 +14,7 @@ import { useSocketEvents } from "./hooks/useSocketEvents";
 import { useEffects } from "./hooks/useEffects";
 import { useMediaStatusSync } from "./hooks/useMediaStatusSync";
 import { useChat } from "./hooks/useChat";
+import { isScreenShareSupported } from "./utils/deviceUtils";
 import "./App.css";
 
 function App() {
@@ -575,15 +576,17 @@ function App() {
           {isVideoOff ? "📵" : "📹"}
         </button>
 
-        <button
-          onClick={toggleScreenShare}
-          className={`control-button control-button--circular control-button--screen-share ${
-            isScreenSharing ? "screen-sharing" : ""
-          }`}
-          title={isScreenSharing ? "Stop Screen Share" : "Share Screen"}
-        >
-          {isScreenSharing ? "🔳" : "🖥️"}
-        </button>
+        {isScreenShareSupported() && (
+          <button
+            onClick={toggleScreenShare}
+            className={`control-button control-button--circular control-button--screen-share ${
+              isScreenSharing ? "screen-sharing" : ""
+            }`}
+            title={isScreenSharing ? "Stop Screen Share" : "Share Screen"}
+          >
+            {isScreenSharing ? "🔳" : "🖥️"}
+          </button>
+        )}
 
         <button
           onClick={openParticipantsSheet}
