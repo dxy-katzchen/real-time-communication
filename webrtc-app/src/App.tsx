@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Auth from "./Components/Auth/Auth";
 import MeetingLobby from "./Components/MeetingLobby/MeetingLobby";
 import Chat from "./Components/Chat/Chat";
@@ -54,6 +54,34 @@ function App() {
     setUnreadMessagesCount,
   } = useAppState();
 
+  // Participants bottom sheet state
+  const [isParticipantsSheetOpen, setIsParticipantsSheetOpen] = useState(false);
+
+  // Check for meeting link in URL parameters
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlMeetingId = urlParams.get("meetingId");
+    if (urlMeetingId && !meetingId) {
+      setMeetingId(urlMeetingId);
+      // Clear the URL parameter after extracting it
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [meetingId, setMeetingId]);
+
+  // Handle participants sheet close on escape key
+  useEffect(() => {
+    const handleEscapeKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && isParticipantsSheetOpen) {
+        setIsParticipantsSheetOpen(false);
+      }
+    };
+
+    document.addEventListener("keydown", handleEscapeKey);
+    return () => {
+      document.removeEventListener("keydown", handleEscapeKey);
+    };
+  }, [isParticipantsSheetOpen]);
+
   // Socket setup
   const { socketRef, connectionStatus } = useSocketSetup();
 
@@ -81,7 +109,7 @@ function App() {
     toggleAudio,
     toggleVideo,
     toggleScreenShare,
-    copyMeetingId,
+    copyMeetingLink,
   } = useMediaControls({
     localStreamRef,
     localVideo,
@@ -234,7 +262,7 @@ function App() {
   }
 
   // If authenticated but not in a meeting, show meeting lobby
-  if (!inRoom || !meetingId) {
+  if (!inRoom) {
     return (
       <MeetingLobby
         userId={userId}
@@ -242,6 +270,7 @@ function App() {
         onJoinMeeting={handleJoinMeeting}
         onCreateMeeting={handleCreateMeeting}
         onLogout={handleLogout}
+        initialMeetingId={meetingId || undefined}
       />
     );
   }
@@ -269,27 +298,32 @@ function App() {
 
   return (
     <div className="app-container">
-      {/* Status bar */}
-      <div
-        className={`status-bar ${
-          connectionStatus === "Connected"
-            ? "status-bar--connected"
-            : "status-bar--disconnected"
-        }`}
-      >
+      {/* Status bar with connection indicator */}
+      <div className="status-bar">
         <div className="status-bar-content">
+          <div className="connection-status-indicator">
+            <div
+              className={`status-dot ${
+                connectionStatus === "Connected"
+                  ? "status-dot--connected"
+                  : connectionStatus === "Connecting"
+                  ? "status-dot--connecting"
+                  : "status-dot--disconnected"
+              }`}
+            ></div>
+            <span className="status-label">{connectionStatus}</span>
+          </div>
           <span>
             Meeting ID: {meetingId} {isHost && "(Host)"}
           </span>
           <button
-            onClick={() => copyMeetingId(meetingId)}
+            onClick={() => copyMeetingLink(meetingId)}
             className="copy-meeting-button"
-            title="Copy Meeting ID"
+            title="Copy Meeting Link"
           >
-            {isCopied ? "✅ Copied!" : "📋 Copy"}
+            {isCopied ? "✅ Copied!" : "🔗 Copy Link"}
           </button>
         </div>
-        <span>Status: {connectionStatus}</span>
       </div>
 
       {/* Main content area */}
@@ -437,6 +471,19 @@ function App() {
         </button>
 
         <button
+          onClick={() => setIsParticipantsSheetOpen(true)}
+          className={`control-button control-button--circular control-button--participants ${
+            isParticipantsSheetOpen ? "active" : ""
+          }`}
+          title="Show Participants"
+        >
+          👥
+          {participants.length > 1 && (
+            <span className="participants-badge">{participants.length}</span>
+          )}
+        </button>
+
+        <button
           onClick={toggleChat}
           className={`control-button control-button--circular control-button--chat ${
             isChatOpen ? "active" : ""
@@ -468,6 +515,77 @@ function App() {
           participantsCount={participants.length}
         />
       )}
+
+      {/* Participants Bottom Sheet */}
+      <div
+        className={`participants-bottom-sheet ${
+          isParticipantsSheetOpen ? "active" : ""
+        }`}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) {
+            setIsParticipantsSheetOpen(false);
+          }
+        }}
+      >
+        <div className="bottom-sheet-content">
+          <div className="bottom-sheet-handle"></div>
+          <div className="bottom-sheet-header">
+            <h5>Participants ({participants.length})</h5>
+            <button
+              onClick={() => setIsParticipantsSheetOpen(false)}
+              className="bottom-sheet-close"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="bottom-sheet-participants">
+            {/* Local user thumbnail */}
+            <div className="participant-item">
+              <ParticipantThumbnail
+                isLocal={true}
+                stream={localStreamRef.current}
+                userId={userId || ""}
+                displayName={username || ""}
+                isHost={isHost}
+                isMuted={isMuted}
+                isVideoOff={isVideoOff}
+                isScreenSharing={isScreenSharing}
+                onClick={() => {
+                  setMainParticipant(null);
+                  setIsParticipantsSheetOpen(false);
+                }}
+                isActive={mainParticipant === null}
+              />
+            </div>
+
+            {/* Remote participants */}
+            {Array.from(remoteParticipants.values()).map((participant) => {
+              const participantInfo = participants.find(
+                (p) => p.userId === participant.userId
+              );
+              return (
+                <div key={participant.socketId} className="participant-item">
+                  <ParticipantThumbnail
+                    isLocal={false}
+                    stream={participant.stream}
+                    userId={participant.userId}
+                    displayName={participantInfo?.displayName || "Unknown"}
+                    isHost={participantInfo?.isHost || false}
+                    isMuted={participant.isMuted || false}
+                    isVideoOff={participant.isVideoOff || false}
+                    isScreenSharing={participant.isScreenSharing || false}
+                    onClick={() => {
+                      setMainParticipant(participant.userId);
+                      setIsParticipantsSheetOpen(false);
+                    }}
+                    isActive={mainParticipant === participant.userId}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

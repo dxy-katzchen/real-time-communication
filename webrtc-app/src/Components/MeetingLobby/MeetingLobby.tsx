@@ -8,6 +8,7 @@ interface MeetingLobbyProps {
   onJoinMeeting: (meetingId: string) => void;
   onCreateMeeting: (meetingId: string) => void;
   onLogout?: () => void;
+  initialMeetingId?: string;
 }
 
 const MeetingLobby: React.FC<MeetingLobbyProps> = ({
@@ -16,8 +17,9 @@ const MeetingLobby: React.FC<MeetingLobbyProps> = ({
   onJoinMeeting,
   onCreateMeeting,
   onLogout,
+  initialMeetingId,
 }) => {
-  const [meetingId, setMeetingId] = useState("");
+  const [meetingId, setMeetingId] = useState(initialMeetingId || "");
   const [meetingName, setMeetingName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -77,6 +79,12 @@ const MeetingLobby: React.FC<MeetingLobbyProps> = ({
       </div>
 
       {error && <div className="meeting-lobby-error">{error}</div>}
+
+      {initialMeetingId && (
+        <div className="meeting-lobby-link-notice">
+          🔗 Meeting link detected! Meeting ID has been pre-filled below.
+        </div>
+      )}
 
       <div className="meeting-lobby-user-info">
         <label className="meeting-lobby-label">Name:</label>

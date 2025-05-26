@@ -97,6 +97,56 @@ export const useMediaControls = ({
     isScreenSharing,
   ]);
 
+  const stopScreenSharing = useCallback(async () => {
+    console.log("Stopping screen share...");
+
+    try {
+      // Stop screen stream
+      stopScreenShare(screenStreamRef);
+
+      // Restore original camera stream
+      if (originalStreamRef.current) {
+        const cameraVideoTrack = originalStreamRef.current.getVideoTracks()[0];
+
+        if (cameraVideoTrack) {
+          // Replace screen track with camera track in all peer connections
+          await replaceVideoTrack(peerConnections.current, cameraVideoTrack);
+        }
+
+        // Restore local stream
+        localStreamRef.current = originalStreamRef.current;
+
+        // Update local video display
+        if (localVideo.current) {
+          await attachStreamToVideo(originalStreamRef.current, localVideo);
+        }
+
+        originalStreamRef.current = null;
+      } else {
+        // If no original stream, restart camera
+        console.log("No original stream found, restarting camera...");
+        const newStream = await startMediaStream();
+        localStreamRef.current = newStream;
+
+        if (localVideo.current) {
+          await attachStreamToVideo(newStream, localVideo);
+        }
+
+        // Replace tracks for all peer connections
+        const videoTrack = newStream.getVideoTracks()[0];
+        if (videoTrack) {
+          await replaceVideoTrack(peerConnections.current, videoTrack);
+        }
+      }
+
+      setIsScreenSharing(false);
+      console.log("Screen share stopped successfully");
+    } catch (error) {
+      console.error("Error stopping screen share:", error);
+      setIsScreenSharing(false);
+    }
+  }, [localStreamRef, localVideo, peerConnections, setIsScreenSharing]);
+
   const toggleScreenShare = useCallback(async () => {
     try {
       if (!isScreenSharing) {
@@ -172,67 +222,20 @@ export const useMediaControls = ({
     broadcastMediaStatus,
     isMuted,
     isVideoOff,
+    stopScreenSharing,
   ]);
-
-  const stopScreenSharing = useCallback(async () => {
-    console.log("Stopping screen share...");
-
-    try {
-      // Stop screen stream
-      stopScreenShare(screenStreamRef);
-
-      // Restore original camera stream
-      if (originalStreamRef.current) {
-        const cameraVideoTrack = originalStreamRef.current.getVideoTracks()[0];
-
-        if (cameraVideoTrack) {
-          // Replace screen track with camera track in all peer connections
-          await replaceVideoTrack(peerConnections.current, cameraVideoTrack);
-        }
-
-        // Restore local stream
-        localStreamRef.current = originalStreamRef.current;
-
-        // Update local video display
-        if (localVideo.current) {
-          await attachStreamToVideo(originalStreamRef.current, localVideo);
-        }
-
-        originalStreamRef.current = null;
-      } else {
-        // If no original stream, restart camera
-        console.log("No original stream found, restarting camera...");
-        const newStream = await startMediaStream();
-        localStreamRef.current = newStream;
-
-        if (localVideo.current) {
-          await attachStreamToVideo(newStream, localVideo);
-        }
-
-        // Replace tracks for all peer connections
-        const videoTrack = newStream.getVideoTracks()[0];
-        if (videoTrack) {
-          await replaceVideoTrack(peerConnections.current, videoTrack);
-        }
-      }
-
-      setIsScreenSharing(false);
-      console.log("Screen share stopped successfully");
-    } catch (error) {
-      console.error("Error stopping screen share:", error);
-      setIsScreenSharing(false);
-    }
-  }, [localStreamRef, localVideo, peerConnections, setIsScreenSharing]);
 
   const switchToMainView = useCallback((participantId: string | null) => {
     // This will be handled by the parent component that uses this hook
     return participantId;
   }, []);
 
-  const copyMeetingId = useCallback(
+  const copyMeetingLink = useCallback(
     (meetingId: string | null) => {
       if (meetingId) {
-        navigator.clipboard.writeText(meetingId);
+        // Generate the meeting link using current domain
+        const meetingLink = `${window.location.origin}?meetingId=${meetingId}`;
+        navigator.clipboard.writeText(meetingLink);
         setIsCopied(true);
         // Reset the copied state after 2 seconds
         setTimeout(() => {
@@ -249,6 +252,6 @@ export const useMediaControls = ({
     toggleVideo,
     toggleScreenShare,
     switchToMainView,
-    copyMeetingId,
+    copyMeetingLink,
   };
 };
