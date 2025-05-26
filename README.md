@@ -489,28 +489,45 @@ localStorage.setItem("debug", "webrtc:*");
 
 ## 📝 API Documentation
 
-### REST Endpoints
+### RESTful API
 
 ```
-POST /api/users/register     # User registration
-POST /api/users/login        # User authentication
-POST /api/meetings           # Create meeting
-POST /api/meetings/join      # Join meeting
-DELETE /api/meetings/:id     # End meeting
+POST   /api/users                           # Create user
+GET    /api/users/<username>               # Get user info
+POST   /api/meetings                       # Create meeting
+POST   /api/meetings/<id>/join             # Join meeting
+POST   /api/meetings/<id>/end              # End meeting
+POST   /api/meetings/<id>/leave            # Leave meeting
+GET    /api/meetings/<id>/participants     # Get participants
+GET    /api/meetings/<id>/is-host/<user>   # Check host status
 ```
 
-### Socket.IO Events
+### Socket Events
 
 ```
-join                    # Join meeting room
-user-joined            # New participant notification
-user-left              # Participant left notification
-offer                  # WebRTC offer
-answer                 # WebRTC answer
-ice-candidate          # ICE candidate exchange
-media-status-changed   # Audio/video/screen sharing status
-chat-message           # Text chat message
-meeting-ended          # Meeting termination
+# Connection
+connect                # Client connects
+disconnect             # Client disconnects
+join                   # Join meeting room
+leave                  # Leave meeting room
+end-meeting           # End meeting (host only)
+
+# Participants
+existing-participants  # Get current participants
+user-joined           # New user joined
+user-left             # User left meeting
+meeting-ended         # Meeting terminated
+
+# WebRTC Signaling
+offer                 # Send WebRTC offer
+answer                # Send WebRTC answer
+ice-candidate         # Exchange ICE candidates
+
+# Media & Chat
+media-status-update   # Update audio/video/screen status
+media-status-changed  # Broadcast media status changes
+send-chat-message     # Send chat message
+chat-message          # Receive chat message
 ```
 
 ## 🤝 Contributing
