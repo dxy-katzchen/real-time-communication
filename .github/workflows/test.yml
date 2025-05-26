@@ -183,7 +183,7 @@ jobs:
             "https://codecov.io/upload/v2" || echo "Codecov upload failed, continuing..."
 
       - name: Archive test results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: test-results-${{ matrix.python-version }}
@@ -193,7 +193,7 @@ jobs:
           retention-days: 30
 
       - name: Archive coverage report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always() && hashFiles('Flask-Backend/htmlcov/**') != ''
         with:
           name: coverage-report-${{ matrix.python-version }}
@@ -228,7 +228,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload security scan results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: security-scan-results
