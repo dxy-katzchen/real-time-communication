@@ -3,7 +3,7 @@ name: CI/CD Pipeline
 on:
   push:
     branches:
-      - main  # Only run CI/CD on main branch pushes (production deployments)
+      - main # Only run CI/CD on main branch pushes (production deployments)
 
 jobs:
   detect-changes:

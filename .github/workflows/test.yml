@@ -3,12 +3,12 @@ name: Flask Backend Tests
 
 on:
   push:
-    branches: [develop]  # Only run on develop branch pushes
+    branches: [develop] # Only run on develop branch pushes
     paths:
       - "Flask-Backend/**"
       - ".github/workflows/test.yml"
   pull_request:
-    branches: [main, develop]  # Run on PRs to main and develop
+    branches: [main, develop] # Run on PRs to main and develop
     paths:
       - "Flask-Backend/**"
       - ".github/workflows/test.yml"
@@ -19,9 +19,9 @@ jobs:
     timeout-minutes: 20
 
     strategy:
-      fail-fast: false  # Don't cancel other jobs if one fails
+      fail-fast: false # Don't cancel other jobs if one fails
       matrix:
-        python-version: ["3.9", "3.11"]  # Reduced to 2 versions to minimize infrastructure issues
+        python-version: ["3.9", "3.11"] # Reduced to 2 versions to minimize infrastructure issues
 
     services:
       mongodb:
@@ -65,11 +65,11 @@ jobs:
           echo "Waiting for MongoDB to be ready..."
           sleep 15
           echo "Checking MongoDB connection with timeout..."
-          
+
           # Try connecting with a reasonable timeout
           RETRY_COUNT=0
           MAX_RETRIES=20
-          
+
           while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
             if mongosh --eval "db.adminCommand('ping')" --quiet > /dev/null 2>&1; then
               echo "MongoDB is ready!"
@@ -80,7 +80,7 @@ jobs:
             echo "Attempt $RETRY_COUNT/$MAX_RETRIES: MongoDB not ready yet, waiting..."
             sleep 3
           done
-          
+
           if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
             echo "ERROR: MongoDB failed to start after $MAX_RETRIES attempts"
             echo "Checking MongoDB service status..."
