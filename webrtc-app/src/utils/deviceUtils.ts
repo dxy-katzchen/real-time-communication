@@ -29,16 +29,15 @@ export const isMobileDevice = (): boolean => {
   const isTouchDevice =
     "ontouchstart" in window ||
     navigator.maxTouchPoints > 0 ||
-    (navigator as any).msMaxTouchPoints > 0;
+    ((navigator as unknown as { msMaxTouchPoints?: number }).msMaxTouchPoints ||
+      0) > 0;
 
   // Check screen size (mobile-like dimensions)
   const isSmallScreen =
     window.screen.width <= 768 || window.screen.height <= 768;
 
   // Check if screen orientation API exists (typically mobile)
-  const hasOrientationAPI =
-    "orientation" in window ||
-    ("screen" in window && "orientation" in window.screen);
+  const hasOrientationAPI = "orientation" in window;
 
   // Combine checks - device is considered mobile if it meets multiple criteria
   return (
