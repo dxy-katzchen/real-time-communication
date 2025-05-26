@@ -251,7 +251,7 @@ jobs:
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
           source: "./deploy-files/*"
-          target: "/tmp/deploy"
+          target: "/tmp"
           rm: true
 
       - name: Deploy to EC2
@@ -305,9 +305,9 @@ jobs:
               sudo systemctl stop flask-backend || true
               
               # Update backend files
-              if [ -d "/tmp/deploy/Flask-Backend" ]; then
+              if [ -d "/tmp/deploy-files/Flask-Backend" ]; then
                 rm -rf /opt/webrtc-app/current/Flask-Backend
-                cp -r /tmp/deploy/Flask-Backend /opt/webrtc-app/current/
+                cp -r /tmp/deploy-files/Flask-Backend /opt/webrtc-app/current/
               fi
 
               # Setup Python environment and install backend dependencies
@@ -360,13 +360,15 @@ jobs:
               echo "Deploying frontend changes..."
               
               # Debug: Check what files we received
-              echo "=== Debug: Contents of /tmp/deploy ==="
-              ls -la /tmp/deploy/
+              echo "=== Debug: Contents of /tmp ==="
+              ls -la /tmp/
+              echo "=== Debug: Contents of /tmp/deploy-files ==="
+              ls -la /tmp/deploy-files/
               
               # Check if webrtc-dist directory exists and what's in it
-              if [ -d "/tmp/deploy/webrtc-dist" ]; then
-                echo "=== Debug: Contents of /tmp/deploy/webrtc-dist ==="
-                ls -la /tmp/deploy/webrtc-dist/
+              if [ -d "/tmp/deploy-files/webrtc-dist" ]; then
+                echo "=== Debug: Contents of /tmp/deploy-files/webrtc-dist ==="
+                ls -la /tmp/deploy-files/webrtc-dist/
                 
                 echo "=== Debug: Current nginx html directory before cleanup ==="
                 ls -la /usr/share/nginx/html/
@@ -378,7 +380,7 @@ jobs:
                 sudo rm -rf /usr/share/nginx/html/*
                 
                 # Copy new frontend files
-                sudo cp -r /tmp/deploy/webrtc-dist/* /usr/share/nginx/html/
+                sudo cp -r /tmp/deploy-files/webrtc-dist/* /usr/share/nginx/html/
                 
                 # Fix permissions and ownership
                 sudo chown -R nginx:nginx /usr/share/nginx/html/
@@ -393,9 +395,9 @@ jobs:
                 
                 echo "✅ Frontend files updated"
               else
-                echo "❌ ERROR: /tmp/deploy/webrtc-dist directory not found!"
-                echo "Available directories in /tmp/deploy:"
-                ls -la /tmp/deploy/
+                echo "❌ ERROR: /tmp/deploy-files/webrtc-dist directory not found!"
+                echo "Available directories in /tmp/deploy-files:"
+                ls -la /tmp/deploy-files/
                 exit 1
               fi
             else
@@ -410,8 +412,8 @@ jobs:
               sudo systemctl stop nginx || true
               
               # Update nginx config
-              if [ -f "/tmp/deploy/nginx.conf" ]; then
-                sudo cp /tmp/deploy/nginx.conf /etc/nginx/conf.d/webrtc-app.conf
+              if [ -f "/tmp/deploy-files/nginx.conf" ]; then
+                sudo cp /tmp/deploy-files/nginx.conf /etc/nginx/conf.d/webrtc-app.conf
                 # Remove default nginx configuration if it exists
                 sudo rm -f /etc/nginx/conf.d/default.conf
                 sudo rm -f /etc/nginx/sites-enabled/default
@@ -443,7 +445,7 @@ jobs:
             sudo systemctl start nginx
 
             # Clean up temporary files
-            rm -rf /tmp/deploy
+            rm -rf /tmp/deploy-files
 
             echo "🎉 Deployment completed successfully!"
 
