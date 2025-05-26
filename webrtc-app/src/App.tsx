@@ -131,23 +131,128 @@ function App() {
     };
   }, [isParticipantsSheetOpen, closeParticipantsSheet]);
 
-  // iOS-specific fix for participants sheet content rendering
+  // Enhanced iOS-specific fix for participants sheet content rendering
   useEffect(() => {
     if (isParticipantsSheetOpen) {
-      // Force content refresh on iOS after opening
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      // Comprehensive iOS detection (all browsers use WebKit on iOS)
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) ||
+                    /Safari/.test(navigator.userAgent) && /Mobile/.test(navigator.userAgent);
+      
       if (isIOS) {
-        setTimeout(() => {
-          const participantsContainer = document.querySelector(
-            ".bottom-sheet-participants"
-          ) as HTMLElement;
-          if (participantsContainer) {
-            // Force a style recalculation
-            participantsContainer.style.display = "none";
-            void participantsContainer.offsetHeight; // Trigger reflow
-            participantsContainer.style.display = "";
+        // Enhanced multi-strategy approach to fix iOS WebKit rendering issues
+        const forceIOSRender = () => {
+          const participantsSheet = document.querySelector('.participants-bottom-sheet') as HTMLElement;
+          const bottomSheetContent = document.querySelector('.bottom-sheet-content') as HTMLElement;
+          const participantsContainer = document.querySelector('.bottom-sheet-participants') as HTMLElement;
+          const participantItems = document.querySelectorAll('.participant-item');
+          
+          if (participantsSheet && bottomSheetContent && participantsContainer) {
+            // Strategy 1: Force complete DOM re-rendering
+            participantsSheet.style.display = 'none';
+            void participantsSheet.offsetHeight; // Force layout
+            participantsSheet.style.display = 'block';
+            
+            // Strategy 2: Aggressive hardware acceleration for all elements
+            [participantsSheet, bottomSheetContent, participantsContainer].forEach(element => {
+              element.style.transform = 'translate3d(0, 0, 0)';
+              element.style.backfaceVisibility = 'hidden';
+              element.style.willChange = 'transform, opacity';
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              (element.style as any).webkitTransform = 'translate3d(0, 0, 0)';
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              (element.style as any).webkitBackfaceVisibility = 'hidden';
+            });
+            
+            // Strategy 3: Force visibility and opacity for each participant
+            participantItems.forEach((item, index) => {
+              const element = item as HTMLElement;
+              
+              // Reset all animations and transitions
+              element.style.animation = 'none';
+              element.style.transition = 'none';
+              element.style.opacity = '0';
+              element.style.visibility = 'hidden';
+              element.style.transform = 'translate3d(0, 20px, 0)';
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              (element.style as any).webkitTransform = 'translate3d(0, 20px, 0)';
+              
+              // Force layout
+              void element.offsetHeight;
+              
+              // Restore visibility with staggered animation
+              setTimeout(() => {
+                element.style.visibility = 'visible';
+                element.style.transition = 'all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+                element.style.transform = 'translate3d(0, 0, 0)';
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (element.style as any).webkitTransform = 'translate3d(0, 0, 0)';
+                element.style.opacity = '1';
+                
+                // Force another layout after visibility change
+                void element.offsetHeight;
+              }, 50 + (index * 25));
+            });
+            
+            // Strategy 4: Multiple forced reflows at different intervals
+            const forceReflow = () => {
+              void participantsContainer.offsetHeight;
+              void participantsContainer.offsetWidth;
+              void bottomSheetContent.offsetHeight;
+              void participantsSheet.offsetHeight;
+            };
+            
+            forceReflow();
+            requestAnimationFrame(forceReflow);
+            
+            // Strategy 5: Ensure container scrollability
+            setTimeout(() => {
+              participantsContainer.style.overflowY = 'auto';
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              (participantsContainer.style as any).webkitOverflowScrolling = 'touch';
+              participantsContainer.style.touchAction = 'pan-y';
+              
+              // Strategy 6: Final failsafe - force all content visible
+              setTimeout(() => {
+                participantsContainer.style.opacity = '1';
+                participantsContainer.style.visibility = 'visible';
+                participantItems.forEach((item) => {
+                  const element = item as HTMLElement;
+                  element.style.opacity = '1';
+                  element.style.visibility = 'visible';
+                });
+                
+                // Final cleanup
+                [participantsSheet, bottomSheetContent, participantsContainer].forEach(element => {
+                  element.style.willChange = 'auto';
+                });
+              }, 200);
+            }, 300);
           }
-        }, 50);
+        };
+        
+        // Execute with multiple delays to handle iOS WebKit aggressive optimization
+        forceIOSRender();
+        setTimeout(forceIOSRender, 100);
+        setTimeout(forceIOSRender, 250);
+        setTimeout(forceIOSRender, 500); // Additional delay for stubborn cases
+        
+        // Force re-render when animation completes
+        setTimeout(() => {
+          const participantItems = document.querySelectorAll('.participant-item');
+          participantItems.forEach((item) => {
+            const element = item as HTMLElement;
+            element.style.willChange = 'auto';
+            void element.offsetHeight;
+          });
+          
+          // Final visibility check - ultimate failsafe
+          const participantsContainer = document.querySelector('.bottom-sheet-participants') as HTMLElement;
+          if (participantsContainer) {
+            participantsContainer.style.opacity = '1';
+            participantsContainer.style.visibility = 'visible';
+          }
+        }, 1000);
       }
     }
   }, [isParticipantsSheetOpen, participants.length, remoteParticipants.size]);

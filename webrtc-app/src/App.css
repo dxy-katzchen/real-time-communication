@@ -415,8 +415,15 @@
   /* Force hardware acceleration on iOS */
   -webkit-transform: translate3d(0, 0, 0);
   transform: translate3d(0, 0, 0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
   /* Prevent iOS bounce scrolling */
   overflow: hidden;
+  /* iOS-specific optimizations */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Force GPU acceleration for smoother animations */
+  will-change: transform, opacity;
 }
 
 .participants-bottom-sheet.active {
@@ -464,6 +471,14 @@
   /* iOS bounce prevention */
   -webkit-overflow-scrolling: touch;
   position: relative;
+  /* Enhanced iOS-specific optimizations */
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  /* Prevent content disappearing on iOS */
+  -webkit-font-smoothing: antialiased;
+  isolation: isolate;
+  /* Force layer creation */
+  contain: layout style paint;
 }
 
 .participants-bottom-sheet.active .bottom-sheet-content {
@@ -548,6 +563,17 @@
   overscroll-behavior-y: contain;
   /* iOS touch handling */
   touch-action: pan-y;
+  /* Enhanced iOS WebKit rendering fixes */
+  -webkit-transform: translate3d(0, 0, 0);
+  transform: translate3d(0, 0, 0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  /* Force layer creation to prevent disappearing content */
+  contain: layout style paint;
+  isolation: isolate;
+  /* Ensure content is always visible */
+  position: relative;
+  z-index: 1;
 }
 
 .participant-item {
@@ -564,6 +590,15 @@
   transform: translateY(10px);
   animation: participantItemEnter 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94)
     forwards;
+  /* iOS-specific optimizations to prevent disappearing */
+  -webkit-transform: translateY(10px);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  /* Force individual layer creation */
+  contain: layout style;
+  isolation: isolate;
+  /* Ensure visibility on iOS */
+  -webkit-font-smoothing: antialiased;
 }
 
 .participant-item:nth-child(1) {
@@ -821,39 +856,55 @@
 
 @keyframes slideUpContent {
   0% {
-    transform: translateY(100%) scale(0.95);
+    transform: translateY(100%) scale(0.95) translateZ(0);
+    -webkit-transform: translateY(100%) scale(0.95) translateZ(0);
     box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.1);
+    opacity: 0.8;
   }
   30% {
-    transform: translateY(40%) scale(0.97);
+    transform: translateY(40%) scale(0.97) translateZ(0);
+    -webkit-transform: translateY(40%) scale(0.97) translateZ(0);
     box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.15);
+    opacity: 0.9;
   }
   70% {
-    transform: translateY(-2%) scale(1.005);
+    transform: translateY(-2%) scale(1.005) translateZ(0);
+    -webkit-transform: translateY(-2%) scale(1.005) translateZ(0);
     box-shadow: 0 -14px 45px rgba(0, 0, 0, 0.3);
+    opacity: 0.98;
   }
   100% {
-    transform: translateY(0) scale(1);
+    transform: translateY(0) scale(1) translateZ(0);
+    -webkit-transform: translateY(0) scale(1) translateZ(0);
     box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.25);
+    opacity: 1;
   }
 }
 
 @keyframes slideDownContent {
   0% {
-    transform: translateY(0) scale(1);
+    transform: translateY(0) scale(1) translateZ(0);
+    -webkit-transform: translateY(0) scale(1) translateZ(0);
     box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.25);
+    opacity: 1;
   }
   30% {
-    transform: translateY(-2%) scale(1.005);
+    transform: translateY(-2%) scale(1.005) translateZ(0);
+    -webkit-transform: translateY(-2%) scale(1.005) translateZ(0);
     box-shadow: 0 -14px 45px rgba(0, 0, 0, 0.3);
+    opacity: 0.98;
   }
   70% {
-    transform: translateY(40%) scale(0.97);
+    transform: translateY(40%) scale(0.97) translateZ(0);
+    -webkit-transform: translateY(40%) scale(0.97) translateZ(0);
     box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.15);
+    opacity: 0.9;
   }
   100% {
-    transform: translateY(100%) scale(0.95);
+    transform: translateY(100%) scale(0.95) translateZ(0);
+    -webkit-transform: translateY(100%) scale(0.95) translateZ(0);
     box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.1);
+    opacity: 0.8;
   }
 }
 
@@ -890,33 +941,31 @@
 @keyframes participantItemEnter {
   0% {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(15px) translateZ(0) scale(0.95);
+    -webkit-transform: translateY(15px) translateZ(0) scale(0.95);
+  }
+  50% {
+    opacity: 0.7;
+    transform: translateY(5px) translateZ(0) scale(0.98);
+    -webkit-transform: translateY(5px) translateZ(0) scale(0.98);
   }
   100% {
     opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes participantItemEnter {
-  0% {
-    opacity: 0;
-    transform: translateY(10px) scale(0.98);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0) translateZ(0) scale(1);
+    -webkit-transform: translateY(0) translateZ(0) scale(1);
   }
 }
 
 @keyframes participantItemExit {
   0% {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0) translateZ(0) scale(1);
+    -webkit-transform: translateY(0) translateZ(0) scale(1);
   }
   100% {
     opacity: 0;
-    transform: translateY(-5px) scale(0.96);
+    transform: translateY(-10px) translateZ(0) scale(0.9);
+    -webkit-transform: translateY(-10px) translateZ(0) scale(0.9);
   }
 }
 
