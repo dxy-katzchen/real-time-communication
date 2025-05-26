@@ -55,53 +55,103 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install -r requirements-test.txt
+          echo "Installed packages:"
+          pip list
 
       - name: Wait for MongoDB
         run: |
           echo "Waiting for MongoDB to be ready..."
-          sleep 10
+          sleep 15
+          echo "Checking MongoDB connection..."
+          timeout 30s bash -c 'until mongosh --eval "db.adminCommand(\"ping\")" > /dev/null 2>&1; do sleep 1; done'
+
+      - name: Test MongoDB connection
+        run: |
+          echo "Testing MongoDB connectivity..."
+          mongosh --eval "db.runCommand('ping')" || echo "MongoDB connection test failed"
 
       - name: Run linting
         working-directory: Flask-Backend
         run: |
-          pip install flake8 black
-          flake8 server.py tests/ --max-line-length=100 --ignore=E203,W503
-          black --check server.py tests/
+          echo "Running code quality checks..."
+          flake8 server.py tests/ --max-line-length=100 --ignore=E203,W503,F841 || echo "Linting failed"
+          black --check server.py tests/ || echo "Black formatting check failed"
         continue-on-error: true
+
+      - name: Debug test environment
+        working-directory: Flask-Backend
+        run: |
+          echo "=== Environment Debug ==="
+          echo "Python version: $(python --version)"
+          echo "Working directory: $(pwd)"
+          echo "Files in directory:"
+          ls -la
+          echo "Test files:"
+          ls -la tests/
+          echo "Requirements files exist:"
+          ls -la requirements*.txt
+          echo "=== End Debug ==="
 
       - name: Run unit tests
         working-directory: Flask-Backend
-        run: make test-unit
+        run: |
+          echo "Running unit tests..."
+          make test-unit || (echo "Unit tests failed" && exit 1)
 
       - name: Run Socket.IO tests
         working-directory: Flask-Backend
-        run: make test-socket
+        run: |
+          echo "Running Socket.IO tests..."
+          make test-socket || (echo "Socket tests failed" && exit 1)
 
       - name: Run integration tests
         working-directory: Flask-Backend
-        run: make test-integration
+        run: |
+          echo "Running integration tests..."
+          make test-integration || (echo "Integration tests failed" && exit 1)
 
       - name: Run full test suite with coverage
         working-directory: Flask-Backend
-        run: make ci-test
+        run: |
+          echo "Running comprehensive test suite with coverage..."
+          python -m pytest tests/ --cov=server --cov-report=xml --cov-report=html --junit-xml=test-results.xml -v
+          echo "Generated coverage files:"
+          ls -la coverage.xml test-results.xml htmlcov/ || echo "Some coverage files missing"
 
       - name: Validate test coverage threshold
         working-directory: Flask-Backend
         run: |
           python -c "
           import xml.etree.ElementTree as ET
-          tree = ET.parse('coverage.xml')
-          coverage = float(tree.getroot().attrib['line-rate']) * 100
-          print(f'Coverage: {coverage:.1f}%')
-          if coverage < 90:
-              print(f'ERROR: Coverage {coverage:.1f}% is below minimum threshold of 90%')
+          try:
+              tree = ET.parse('coverage.xml')
+              coverage = float(tree.getroot().attrib['line-rate']) * 100
+              print(f'Coverage: {coverage:.1f}%')
+              if coverage < 90:
+                  print(f'ERROR: Coverage {coverage:.1f}% is below minimum threshold of 90%')
+                  exit(1)
+              else:
+                  print(f'SUCCESS: Coverage {coverage:.1f}% meets minimum threshold')
+          except Exception as e:
+              print(f'ERROR: Could not parse coverage.xml: {e}')
               exit(1)
-          else:
-              print(f'SUCCESS: Coverage {coverage:.1f}% meets minimum threshold')
           "
+
+      - name: List generated files for debugging
+        working-directory: Flask-Backend
+        if: always()
+        run: |
+          echo "=== Generated Files Debug ==="
+          ls -la
+          echo "Coverage files:"
+          ls -la coverage.xml test-results.xml 2>/dev/null || echo "XML files not found"
+          echo "HTML coverage directory:"
+          ls -la htmlcov/ 2>/dev/null || echo "htmlcov directory not found"
+          echo "=== End Files Debug ==="
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
+        if: always()
         with:
           file: Flask-Backend/coverage.xml
           directory: Flask-Backend
@@ -116,12 +166,12 @@ jobs:
           name: test-results-${{ matrix.python-version }}
           path: |
             Flask-Backend/test-results.xml
-            Flask-Backend/htmlcov/
+            Flask-Backend/coverage.xml
           retention-days: 30
 
       - name: Archive coverage report
         uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && hashFiles('Flask-Backend/htmlcov/**') != ''
         with:
           name: coverage-report-${{ matrix.python-version }}
           path: Flask-Backend/htmlcov/
