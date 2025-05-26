@@ -145,6 +145,7 @@ def join_meeting(meeting_id):
                 "userId": user_id,
                 "joinedAt": datetime.now(),
                 "isHost": meeting["hostId"] == user_id,
+                
             }
         )
 
