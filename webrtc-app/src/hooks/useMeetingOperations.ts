@@ -74,7 +74,7 @@ export const useMeetingOperations = ({
       setInRoom(true);
       setIsHost(true);
       localStorage.setItem("lastMeetingId", newMeetingId);
-      
+
       // Update URL with new meeting ID
       const currentUrl = new URL(window.location.href);
       currentUrl.searchParams.set("meetingId", newMeetingId);
@@ -98,7 +98,7 @@ export const useMeetingOperations = ({
       }
 
       localStorage.setItem("lastMeetingId", meetingIdToJoin);
-      
+
       // Update URL with meeting ID
       const currentUrl = new URL(window.location.href);
       currentUrl.searchParams.set("meetingId", meetingIdToJoin);
@@ -125,7 +125,7 @@ export const useMeetingOperations = ({
       setIsHost(false);
       setMainParticipant(null);
       localStorage.removeItem("lastMeetingId");
-      
+
       // Remove meeting ID from URL
       const currentUrl = new URL(window.location.href);
       currentUrl.searchParams.delete("meetingId");
@@ -198,7 +198,7 @@ export const useMeetingOperations = ({
     setIsHost(false);
     setMainParticipant(null);
     localStorage.removeItem("lastMeetingId");
-    
+
     // Remove meeting ID from URL
     const currentUrl = new URL(window.location.href);
     currentUrl.searchParams.delete("meetingId");

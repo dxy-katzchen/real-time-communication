@@ -73,7 +73,7 @@ function App() {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const urlMeetingId = urlParams.get("meetingId");
-    
+
     // If URL has a meeting ID and it's different from current state, update state
     if (urlMeetingId && urlMeetingId !== meetingId) {
       setMeetingId(urlMeetingId);
