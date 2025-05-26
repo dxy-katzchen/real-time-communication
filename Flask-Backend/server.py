@@ -36,6 +36,14 @@ def index():
 @app.route('/api/users', methods=['POST'])
 def create_user():
     user_data = request.json
+    
+    # Validate input data
+    if not user_data or 'username' not in user_data:
+        return jsonify({'error': 'Username is required'}), 400
+    
+    if not user_data['username'] or user_data['username'] == '':
+        return jsonify({'error': 'Username cannot be empty'}), 400
+    
     # Check if user already exists
     existing_user = users_collection.find_one({'username': user_data['username']})
     if existing_user:
@@ -63,6 +71,11 @@ def get_user(username):
 @app.route('/api/meetings', methods=['POST'])
 def create_meeting():
     meeting_data = request.json
+    
+    # Validate input data
+    if not meeting_data or 'hostId' not in meeting_data:
+        return jsonify({'error': 'Host ID is required'}), 400
+    
     host_id = meeting_data['hostId']
     
     # Create new meeting
@@ -89,10 +102,25 @@ def create_meeting():
 @app.route('/api/meetings/<meeting_id>/join', methods=['POST'])
 def join_meeting(meeting_id):
     user_data = request.json
+    
+    # Validate input data
+    if not user_data or 'userId' not in user_data:
+        return jsonify({'error': 'User ID is required'}), 400
+    
     user_id = user_data['userId']
     
+    # Validate user ID is not empty
+    if not user_id or user_id == '':
+        return jsonify({'error': 'User ID cannot be empty'}), 400
+    
+    # Validate meeting ID format
+    try:
+        meeting_obj_id = ObjectId(meeting_id)
+    except Exception:
+        return jsonify({'error': 'Invalid meeting ID format'}), 400
+    
     # Check if meeting exists
-    meeting = meetings_collection.find_one({'_id': ObjectId(meeting_id)})
+    meeting = meetings_collection.find_one({'_id': meeting_obj_id})
     if not meeting:
         return jsonify({'error': 'Meeting not found'}), 404
     
@@ -224,37 +252,49 @@ def handle_disconnect():
 
 @socketio.on('join')
 def on_join(data):
-    room = data['room']
-    user_id = data.get('userId')
-    
-    # Store connection info
-    active_connections[request.sid] = {
-        'room': room,
-        'userId': user_id,
-        'socketId': request.sid
-    }
-    
-    join_room(room)
-    
-    # Get all existing participants in the room
-    existing_participants = []
-    for sid, conn_info in active_connections.items():
-        if conn_info['room'] == room and sid != request.sid:
-            existing_participants.append({
-                'userId': conn_info['userId'],
-                'socketId': sid
-            })
-    
-    # Send existing participants to the new user
-    emit('existing-participants', {
-        'participants': existing_participants
-    })
-    
-    # Notify existing participants about the new user
-    socketio.emit('user-joined', {
-        'userId': user_id,
-        'socketId': request.sid
-    }, to=room, include_self=False)
+    try:
+        # Validate input data
+        if not data or 'room' not in data:
+            socketio.emit('error', {'message': 'Room is required'}, to=request.sid)
+            return
+        
+        room = data['room']
+        user_id = data.get('userId')
+        
+        # Store connection info
+        active_connections[request.sid] = {
+            'room': room,
+            'userId': user_id,
+            'socketId': request.sid
+        }
+        
+        join_room(room)
+        
+        # Get all existing participants in the room
+        existing_participants = []
+        for sid, conn_info in active_connections.items():
+            if conn_info['room'] == room and sid != request.sid:
+                existing_participants.append({
+                    'userId': conn_info['userId'],
+                    'socketId': sid
+                })
+        
+        # Send existing participants to the new user
+        emit('existing-participants', {
+            'participants': existing_participants
+        })
+        
+        # Notify other participants that a new user joined
+        socketio.emit('user-joined', {
+            'userId': user_id,
+            'socketId': request.sid
+        }, to=room, include_self=False)
+        
+        print(f"User {user_id} joined room {room}")
+        
+    except Exception as e:
+        print(f"Error in join event: {e}")
+        socketio.emit('error', {'message': 'Failed to join room'}, to=request.sid)
 
 @socketio.on('leave')
 def on_leave(data):

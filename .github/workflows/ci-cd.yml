@@ -34,6 +34,83 @@ jobs:
               - 'nginx.conf'
               - '.github/workflows/**'
 
+  # Run comprehensive tests before building/deploying
+  test-backend:
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.backend-changed == 'true'
+
+    services:
+      mongodb:
+        image: mongo:6.0
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('Flask-Backend/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install backend dependencies
+        working-directory: ./Flask-Backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-test.txt
+
+      - name: Wait for MongoDB
+        run: |
+          echo "Waiting for MongoDB to be ready..."
+          sleep 10
+
+      - name: Run comprehensive test suite
+        working-directory: ./Flask-Backend
+        run: |
+          echo "Running comprehensive Flask backend test suite..."
+          make ci-test
+
+      - name: Validate test coverage threshold
+        working-directory: ./Flask-Backend
+        run: |
+          python -c "
+          import xml.etree.ElementTree as ET
+          tree = ET.parse('coverage.xml')
+          coverage = float(tree.getroot().attrib['line-rate']) * 100
+          print(f'Coverage: {coverage:.1f}%')
+          if coverage < 90:
+              print(f'ERROR: Coverage {coverage:.1f}% is below minimum threshold of 90%')
+              exit(1)
+          else:
+              print(f'SUCCESS: Coverage {coverage:.1f}% meets minimum threshold')
+          "
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-test-results
+          path: |
+            Flask-Backend/test-results.xml
+            Flask-Backend/coverage.xml
+            Flask-Backend/htmlcov/
+
   build-frontend:
     runs-on: ubuntu-latest
     needs: detect-changes
@@ -66,8 +143,8 @@ jobs:
 
   build-backend:
     runs-on: ubuntu-latest
-    needs: detect-changes
-    if: needs.detect-changes.outputs.backend-changed == 'true'
+    needs: [detect-changes, test-backend]
+    if: needs.detect-changes.outputs.backend-changed == 'true' && needs.test-backend.result == 'success'
 
     steps:
       - name: Checkout code
@@ -98,8 +175,8 @@ jobs:
 
   deploy:
     runs-on: ubuntu-latest
-    needs: [detect-changes, build-frontend, build-backend]
-    # Deploy if any changes are detected and we're on main branch
+    needs: [detect-changes, build-frontend, build-backend, test-backend]
+    # Deploy if any changes are detected and we're on main branch and all tests pass
     if: |
       always() && 
       github.ref == 'refs/heads/main' && 
@@ -107,7 +184,8 @@ jobs:
        needs.detect-changes.outputs.backend-changed == 'true' || 
        needs.detect-changes.outputs.config-changed == 'true') &&
       (needs.build-frontend.result == 'success' || needs.build-frontend.result == 'skipped') &&
-      (needs.build-backend.result == 'success' || needs.build-backend.result == 'skipped')
+      (needs.build-backend.result == 'success' || needs.build-backend.result == 'skipped') &&
+      (needs.test-backend.result == 'success' || needs.test-backend.result == 'skipped')
     environment: webrtc
     steps:
       - name: Checkout code
@@ -427,7 +505,7 @@ jobs:
   # Add summary job to show what was deployed
   deployment-summary:
     runs-on: ubuntu-latest
-    needs: [detect-changes, build-frontend, build-backend, deploy]
+    needs: [detect-changes, build-frontend, build-backend, test-backend, deploy]
     if: always() && github.ref == 'refs/heads/main'
 
     steps:
@@ -441,6 +519,7 @@ jobs:
           echo "- **Config**: ${{ needs.detect-changes.outputs.config-changed }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Job Results" >> $GITHUB_STEP_SUMMARY
+          echo "- **Backend Tests**: ${{ needs.test-backend.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Frontend Build**: ${{ needs.build-frontend.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Backend Build**: ${{ needs.build-backend.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Deployment**: ${{ needs.deploy.result }}" >> $GITHUB_STEP_SUMMARY
@@ -449,5 +528,5 @@ jobs:
           if [ "${{ needs.detect-changes.outputs.frontend-changed }}" == "false" ] && [ "${{ needs.detect-changes.outputs.backend-changed }}" == "false" ] && [ "${{ needs.detect-changes.outputs.config-changed }}" == "false" ]; then
             echo "⏭️ **No deployment needed** - No changes detected in frontend, backend, or config files." >> $GITHUB_STEP_SUMMARY
           else
-            echo "✅ **Deployment completed** - Only changed components were built and deployed." >> $GITHUB_STEP_SUMMARY
+            echo "✅ **Deployment completed** - Only changed components were tested, built and deployed." >> $GITHUB_STEP_SUMMARY
           fi
