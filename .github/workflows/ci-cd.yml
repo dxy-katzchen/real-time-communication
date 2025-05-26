@@ -136,7 +136,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: frontend-build
-          path: ./webrtc-app/dist
+          path: ./webrtc-app/dist/*
 
   build-backend:
     runs-on: ubuntu-latest
@@ -215,7 +215,7 @@ jobs:
           # Copy files based on what changed
           if [ "${{ needs.detect-changes.outputs.frontend-changed }}" == "true" ]; then
             echo "Including frontend files..."
-            cp -r ./webrtc-app ./deploy-files/
+            cp -r ./webrtc-app/dist ./deploy-files/webrtc-dist
           fi
 
           if [ "${{ needs.detect-changes.outputs.backend-changed }}" == "true" ]; then
@@ -335,9 +335,9 @@ jobs:
               echo "Deploying frontend changes..."
               
               # Update frontend files
-              if [ -d "/tmp/deploy/webrtc-app/dist" ]; then
+              if [ -d "/tmp/deploy/webrtc-dist" ]; then
                 sudo rm -rf /usr/share/nginx/html/*
-                sudo cp -r /tmp/deploy/webrtc-app/dist/* /usr/share/nginx/html/
+                sudo cp -r /tmp/deploy/webrtc-dist/* /usr/share/nginx/html/
                 echo "✅ Frontend files updated"
               fi
             else
