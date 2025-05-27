@@ -6,6 +6,7 @@ import { Control } from "./Components/Control/Control";
 import Sidebar from "./Components/Sidebar/Sidebar";
 import ChatDrawer from "./Components/ChatDrawer/ChatDrawer";
 import ParticipantsDrawer from "./Components/ParticipantsDrawer/ParticipantsDrawer";
+import StatusBar from "./Components/StatusBar/StatusBar";
 import { MainVideoComponent } from "./Components/MainVideoComponent/MainVideoComponent";
 import { useAppState } from "./hooks/useAppState";
 import { useMediaControls } from "./hooks/useMediaControls";
@@ -411,32 +412,13 @@ function App() {
   return (
     <div className="app-container">
       {/* Status bar with connection indicator */}
-      <div className="status-bar">
-        <div className="status-bar-content">
-          <div className="connection-status-indicator">
-            <div
-              className={`status-dot ${
-                connectionStatus === "Connected"
-                  ? "status-dot--connected"
-                  : connectionStatus === "Connecting"
-                  ? "status-dot--connecting"
-                  : "status-dot--disconnected"
-              }`}
-            ></div>
-            <span className="status-label">{connectionStatus}</span>
-          </div>
-          <span className="meeting-id-text">
-            Meeting ID: {meetingId} {isHost && "(Host)"}
-          </span>
-        </div>
-        <button
-          onClick={() => copyMeetingLink(meetingId)}
-          className="copy-meeting-button"
-          title="Copy Meeting Link"
-        >
-          {isCopied ? "✅ Copied!" : "🔗 Copy Link"}
-        </button>
-      </div>
+      <StatusBar
+        connectionStatus={connectionStatus}
+        meetingId={meetingId}
+        isHost={isHost}
+        isCopied={isCopied}
+        copyMeetingLink={copyMeetingLink}
+      />
 
       {/* Main content area */}
       <div className="main-content">

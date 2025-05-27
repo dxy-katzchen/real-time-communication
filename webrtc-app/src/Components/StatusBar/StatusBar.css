@@ -1,0 +1,179 @@
+/* StatusBar Component Styles */
+
+/* Status bar */
+.status-bar {
+  padding: 12px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #ffffff;
+  border-bottom: 1px solid #e9ecef;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  position: relative;
+}
+
+.status-bar::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(135deg, #2d8cff 0%, #1976d2 100%);
+}
+
+/* Status bar layout */
+.status-bar-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 500;
+}
+
+/* Connection Status Indicator */
+.connection-status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.status-dot--connected {
+  background-color: #28a745;
+  box-shadow: 0 0 8px rgba(40, 167, 69, 0.4);
+}
+
+.status-dot--disconnected {
+  background-color: #dc3545;
+  box-shadow: 0 0 8px rgba(220, 53, 69, 0.4);
+}
+
+.status-dot--connecting {
+  background-color: #ffc107;
+  box-shadow: 0 0 8px rgba(255, 193, 7, 0.4);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.status-label {
+  font-size: 13px;
+  color: #6c757d;
+  font-weight: 500;
+}
+
+/* Copy meeting button styles */
+.copy-meeting-button {
+  background-color: #2d8cff;
+  border: none;
+  border-radius: 6px;
+  color: white;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  outline: none;
+  box-shadow: 0 2px 8px rgba(45, 140, 255, 0.3);
+  white-space: nowrap;
+}
+
+/* Meeting ID text - will be hidden on mobile */
+.meeting-id-text {
+  white-space: nowrap;
+}
+
+.copy-meeting-button:hover {
+  background-color: #1976d2;
+  box-shadow: 0 4px 12px rgba(45, 140, 255, 0.4);
+  transform: translateY(-1px);
+}
+
+.copy-meeting-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(45, 140, 255, 0.3);
+}
+
+/* Mobile responsive styles for StatusBar */
+@media (max-width: 768px) {
+  .status-bar {
+    padding: 10px 16px;
+  }
+
+  .status-bar-content {
+    font-size: 13px;
+  }
+
+  /* Hide meeting ID on mobile */
+  .meeting-id-text {
+    display: none;
+  }
+
+  .copy-meeting-button {
+    padding: 6px 12px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 480px) {
+  .status-bar {
+    padding: 8px 12px;
+  }
+
+  .status-bar-content {
+    font-size: 12px;
+    gap: 8px;
+  }
+
+  /* Hide meeting ID on small mobile screens */
+  .meeting-id-text {
+    display: none;
+  }
+
+  .copy-meeting-button {
+    padding: 4px 8px;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 360px) {
+  /* Hide meeting ID on very small screens */
+  .meeting-id-text {
+    display: none;
+  }
+
+  .copy-meeting-button {
+    white-space: nowrap;
+    font-size: 10px;
+    padding: 3px 6px;
+  }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  .copy-meeting-button {
+    min-height: 36px;
+  }
+}
