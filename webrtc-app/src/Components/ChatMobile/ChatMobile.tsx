@@ -78,21 +78,21 @@ export const ChatMobile: React.FC<ChatMobileProps> = ({
                       : "other-message"
                   }`}
                 >
-                  <div className="chat-mobile-message-bubble">
-                    <div className="chat-mobile-message-header">
-                      <span className="chat-mobile-message-sender">
+                  <div className="message-bubble">
+                    <div className="message-header">
+                      <span className="message-sender">
                         {message.userId === currentUserId
                           ? "You"
                           : message.username}
                       </span>
-                      <span className="chat-mobile-message-time">
+                      <span className="message-time">
                         {message.timestamp.toLocaleTimeString([], {
                           hour: "2-digit",
                           minute: "2-digit",
                         })}
                       </span>
                     </div>
-                    <div className="chat-mobile-message-content">
+                    <div className="message-content">
                       {message.message}
                     </div>
                   </div>
