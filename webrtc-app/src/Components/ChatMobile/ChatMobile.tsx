@@ -1,14 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { Drawer } from "antd";
+import type { ChatMessage } from "../../types";
 import "./ChatMobile.css";
-
-export interface ChatMessage {
-  id: string;
-  userId: string;
-  username: string;
-  message: string;
-  timestamp: Date;
-}
 
 export interface ChatMobileProps {
   isOpen: boolean;

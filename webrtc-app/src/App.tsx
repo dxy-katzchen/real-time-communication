@@ -3,7 +3,7 @@ import Auth from "./Components/Auth/Auth";
 import MeetingLobby from "./Components/MeetingLobby/MeetingLobby";
 import Chat from "./Components/Chat/Chat";
 import { Control } from "./Components/Control/Control";
-import ChatDrawer from "./Components/ChatDrawer/ChatDrawer";
+import { ChatMobile } from "./Components/ChatMobile/ChatMobile";
 import ParticipantsDrawer from "./Components/ParticipantsDrawer/ParticipantsDrawer";
 import StatusBar from "./Components/StatusBar/StatusBar";
 import MainContent from "./Components/Main/MainContent/MainContent";
@@ -469,16 +469,17 @@ function App() {
         )}
       </div>
 
-      {/* Chat Drawer - Mobile and Small Viewports */}
-      <ChatDrawer
-        shouldUseDrawer={shouldUseDrawer}
-        isChatOpen={isChatOpen}
-        toggleChat={toggleChat}
-        participants={participants}
-        chatMessages={chatMessages}
-        userId={userId}
-        sendChatMessage={sendChatMessage}
-      />
+      {/* Chat Mobile - Mobile and Small Viewports */}
+      {shouldUseDrawer && (
+        <ChatMobile
+          isOpen={isChatOpen}
+          onClose={toggleChat}
+          chatMessages={chatMessages}
+          onSendMessage={sendChatMessage}
+          currentUserId={userId}
+          participantsCount={participants.length}
+        />
+      )}
 
       {/* Participants Drawer */}
       <ParticipantsDrawer
