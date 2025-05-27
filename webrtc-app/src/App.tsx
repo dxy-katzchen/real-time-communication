@@ -3,11 +3,10 @@ import Auth from "./Components/Auth/Auth";
 import MeetingLobby from "./Components/MeetingLobby/MeetingLobby";
 import Chat from "./Components/Chat/Chat";
 import { Control } from "./Components/Control/Control";
-import Sidebar from "./Components/Sidebar/Sidebar";
 import ChatDrawer from "./Components/ChatDrawer/ChatDrawer";
 import ParticipantsDrawer from "./Components/ParticipantsDrawer/ParticipantsDrawer";
 import StatusBar from "./Components/StatusBar/StatusBar";
-import { MainVideoComponent } from "./Components/MainVideoComponent/MainVideoComponent";
+import MainContent from "./Components/Main/MainContent/MainContent";
 import { useAppState } from "./hooks/useAppState";
 import { useMediaControls } from "./hooks/useMediaControls";
 import { useMeetingOperations } from "./hooks/useMeetingOperations";
@@ -421,64 +420,22 @@ function App() {
       />
 
       {/* Main content area */}
-      <div className="main-content">
-        {/* Main video display */}
-        <div className="main-video-container">
-          <div className="main-video-wrapper">
-            {/* Main participant name */}
-            <div className="main-participant-name">
-              {mainView.isLocal
-                ? `You (${username})`
-                : mainParticipantInfo?.displayName || "Unknown"}{" "}
-              {mainParticipantInfo?.isHost && " (Host)"}
-            </div>
-
-            {/* Main video */}
-            {mainView.isLocal ? (
-              <div className="local-video-container">
-                <video
-                  ref={localVideo}
-                  muted
-                  playsInline
-                  className="main-video"
-                  style={{
-                    transform: isScreenSharing ? "none" : "scaleX(-1)", // Don't mirror when screen sharing
-                  }}
-                  key="local-main-video"
-                />
-                {/* Video off overlay for local video */}
-                {isVideoOff && (
-                  <div className="video-off-overlay">
-                    <div className="avatar-large">
-                      {username ? username.charAt(0).toUpperCase() : "Y"}
-                    </div>
-                    {isMuted && (
-                      <div className="muted-indicator-overlay">🔇</div>
-                    )}
-                  </div>
-                )}
-              </div>
-            ) : (
-              <MainVideoComponent stream={mainView.stream} />
-            )}
-          </div>
-        </div>
-
-        {/* Participant sidebar */}
-        <Sidebar
-          participants={participants}
-          remoteParticipants={remoteParticipants}
-          userId={userId}
-          username={username}
-          isHost={isHost}
-          localStreamRef={localStreamRef}
-          isMuted={isMuted}
-          isVideoOff={isVideoOff}
-          isScreenSharing={isScreenSharing}
-          mainParticipant={mainParticipant}
-          switchToMainView={switchToMainView}
-        />
-      </div>
+      <MainContent
+        mainView={mainView}
+        mainParticipantInfo={mainParticipantInfo}
+        userId={userId}
+        username={username}
+        isHost={isHost}
+        localVideo={localVideo}
+        localStreamRef={localStreamRef}
+        isMuted={isMuted}
+        isVideoOff={isVideoOff}
+        isScreenSharing={isScreenSharing}
+        participants={participants}
+        remoteParticipants={remoteParticipants}
+        mainParticipant={mainParticipant}
+        switchToMainView={switchToMainView}
+      />
 
       {/* Controls */}
       <Control

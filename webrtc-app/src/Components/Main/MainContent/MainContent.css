@@ -1,0 +1,148 @@
+/* Main content area */
+.main-content {
+  display: flex;
+  flex: 1;
+  height: calc(100vh - 130px);
+  overflow: hidden;
+  background-color: #f8f9fa;
+}
+
+/* Main video display */
+.main-video-container {
+  flex: 1;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background-color: #f8f9fa;
+}
+
+.main-video-wrapper {
+  flex: 1;
+  background-color: #000;
+  border-radius: 12px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  border: 2px solid #e9ecef;
+}
+
+.main-participant-name {
+  position: absolute;
+  bottom: 24px;
+  left: 24px;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 8px;
+  z-index: 2;
+  font-weight: 600;
+  font-size: 14px;
+  backdrop-filter: blur(10px);
+}
+
+.main-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Transform now handled inline based on screen sharing state */
+}
+
+/* Local video container */
+.local-video-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* Video off overlay */
+.video-off-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #495057;
+  z-index: 1;
+  border-radius: 12px;
+}
+
+/* Avatar display */
+.avatar-large {
+  font-size: 72px;
+  margin-bottom: 16px;
+  color: #6c757d;
+}
+
+/* Muted indicator in overlay */
+.muted-indicator-overlay {
+  background-color: #dc3545;
+  color: white;
+  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  margin-top: 16px;
+  box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+}
+
+/* Mobile Breakpoint - Tablets and Large Phones */
+@media (max-width: 768px) {
+  .main-video-container {
+    padding: 12px;
+    /* iOS touch handling */
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* Optimize video display for mobile */
+  .main-video-display {
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .main-participant-name {
+    font-size: 14px;
+    padding: 8px 12px;
+  }
+}
+
+/* Mobile Breakpoint - Small Phones */
+@media (max-width: 480px) {
+  /* Further optimize for small screens without mobile header */
+  .main-content {
+    height: calc(100vh - 130px); /* No mobile header */
+  }
+
+  .main-video-container {
+    padding: 8px;
+  }
+
+  .main-participant-name {
+    font-size: 13px;
+    padding: 6px 10px;
+  }
+}
+
+/* Landscape Mobile Optimization */
+@media (max-width: 768px) and (orientation: landscape) {
+  .main-content {
+    height: calc(100vh - 120px); /* No mobile header */
+  }
+}
+
+/* Very Small Screens - Compact Mode */
+@media (max-width: 360px) {
+  .main-video-container {
+    padding: 6px;
+  }
+}
