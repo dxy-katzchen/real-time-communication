@@ -208,67 +208,15 @@
   /* Transform now handled inline based on screen sharing state */
 }
 
-/* Participant sidebar */
-.sidebar {
-  width: 240px;
-  margin: 8px 8px 8px 0;
-  background-color: #ffffff;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  border-left: 1px solid #e9ecef;
-  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.05);
-}
-
-.sidebar-header {
-  padding: 10px;
-  border-bottom: 1px solid #e9ecef;
-  background-color: #ffffff;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
-  min-height: 30px;
-}
-
-.sidebar-header::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(135deg, #2d8cff 0%, #1976d2 100%);
-}
-
-.sidebar-header h5 {
-  margin: 0;
-  color: #232333;
-  font-weight: 700;
-  font-size: 15px;
-}
-
-.participants-count {
-  color: #6c757d;
-  font-size: 12px;
-  font-weight: 500;
-  margin: 0;
-}
-
-.local-participant-container {
-  padding: 10px 14px;
-  background-color: #f8f9fa;
-  border-bottom: 1px solid #e9ecef;
-}
-
-.remote-participants-container {
-  padding: 10px 14px;
+/* Main video display */
+.main-video-container {
   flex: 1;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background-color: #f8f9fa;
 }
-
-/* Participants Bottom Sheet - only visible on mobile */
 .participants-bottom-sheet {
   position: fixed;
   top: 0;
@@ -1367,8 +1315,15 @@
 
 /* Tablet Breakpoint */
 @media (max-width: 1024px) {
-  .sidebar {
-    width: 200px;
+  .control-button--circular {
+    width: 50px;
+    height: 50px;
+    font-size: 16px;
+  }
+
+  .controls {
+    padding: 16px 20px;
+    gap: 12px;
   }
 }
 
@@ -1414,11 +1369,6 @@
     display: block !important;
     /* Ensure content stays visible during closing */
     visibility: visible !important;
-  }
-
-  /* Hide desktop sidebar */
-  .sidebar {
-    display: none;
   }
 
   /* Show mobile participants overlay when active */
