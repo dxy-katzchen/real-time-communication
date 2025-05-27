@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState } from "react";
+import "./MainVideoComponent.css";
 
 // Component for the main video display when showing a remote participant
 export const MainVideoComponent: React.FC<{ stream: MediaStream | null }> = ({
@@ -27,9 +28,7 @@ export const MainVideoComponent: React.FC<{ stream: MediaStream | null }> = ({
       return; // Same stream, no need to update
     }
 
-    console.log(
-      `Setting up main video display, stream: ${currentStreamId}`
-    );
+    console.log(`Setting up main video display, stream: ${currentStreamId}`);
     streamIdRef.current = currentStreamId;
     setHasError(false);
     setIsLoading(true);
@@ -66,7 +65,9 @@ export const MainVideoComponent: React.FC<{ stream: MediaStream | null }> = ({
       }
 
       playAttemptRef.current++;
-      console.log(`Main video play attempt ${playAttemptRef.current}, readyState: ${videoElement.readyState}`);
+      console.log(
+        `Main video play attempt ${playAttemptRef.current}, readyState: ${videoElement.readyState}`
+      );
 
       try {
         await videoElement.play();
@@ -133,7 +134,9 @@ export const MainVideoComponent: React.FC<{ stream: MediaStream | null }> = ({
     };
 
     const handleCanPlay = () => {
-      console.log(`Main video can play, readyState: ${videoElement?.readyState}`);
+      console.log(
+        `Main video can play, readyState: ${videoElement?.readyState}`
+      );
       setIsLoading(false); // Clear loading state when video can play
       playVideo();
     };
@@ -220,75 +223,23 @@ export const MainVideoComponent: React.FC<{ stream: MediaStream | null }> = ({
   }, [stream]);
 
   if (!stream) {
-    return (
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: "#343a40",
-          color: "white",
-        }}
-      >
-        No video available
-      </div>
-    );
+    return <div className="main-video-no-stream">No video available</div>;
   }
 
   return (
-    <div style={{ position: "relative", width: "100%", height: "100%" }}>
-      <video
-        ref={videoRef}
-        playsInline
-        style={{ 
-          width: "100%", 
-          height: "100%", 
-          objectFit: "cover",
-          backgroundColor: "#000"
-        }}
-      />
+    <div className="main-video-container">
+      <video ref={videoRef} playsInline className="main-video" />
 
       {/* Loading overlay */}
       {isLoading && (
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: "rgba(0, 0, 0, 0.7)",
-            color: "white",
-          }}
-        >
-          Loading video...
-        </div>
+        <div className="main-video-loading-overlay">Loading video...</div>
       )}
 
       {/* Error overlay */}
       {hasError && (
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: "rgba(0, 0, 0, 0.7)",
-            color: "white",
-            flexDirection: "column",
-          }}
-        >
+        <div className="main-video-error-overlay">
           <div>Video playback error</div>
-          <div style={{ fontSize: "0.8em", marginTop: "5px" }}>
+          <div className="main-video-error-subtitle">
             Click anywhere to retry
           </div>
         </div>

@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState } from "react";
+import "./ParticipantThumbnail.css";
 
 // Component for participant thumbnails in the sidebar
 export const ParticipantThumbnail: React.FC<{
@@ -94,7 +95,9 @@ export const ParticipantThumbnail: React.FC<{
       }
 
       playAttemptRef.current++;
-      console.log(`Play attempt ${playAttemptRef.current} for ${displayName}, readyState: ${videoElement.readyState}`);
+      console.log(
+        `Play attempt ${playAttemptRef.current} for ${displayName}, readyState: ${videoElement.readyState}`
+      );
 
       try {
         await videoElement.play();
@@ -167,7 +170,9 @@ export const ParticipantThumbnail: React.FC<{
     };
 
     const handleCanPlay = () => {
-      console.log(`Video can play for ${displayName}, readyState: ${videoElement?.readyState}`);
+      console.log(
+        `Video can play for ${displayName}, readyState: ${videoElement?.readyState}`
+      );
       setIsLoading(false); // Clear loading state when video can play
       if (!isLocal || playAttemptRef.current === 0) {
         playVideo();
@@ -229,7 +234,9 @@ export const ParticipantThumbnail: React.FC<{
     // Set a timeout to clear loading state if it gets stuck
     const loadingTimeout = setTimeout(() => {
       if (videoElement && stream) {
-        console.log(`Video loading timeout for ${displayName} - clearing loading state`);
+        console.log(
+          `Video loading timeout for ${displayName} - clearing loading state`
+        );
         setIsLoading(false);
         // Try to play anyway
         playVideo();
@@ -270,122 +277,42 @@ export const ParticipantThumbnail: React.FC<{
   return (
     <div
       onClick={onClick}
-      style={{
-        marginBottom: "10px",
-        cursor: "pointer",
-        border: isActive ? "2px solid #0d6efd" : "1px solid #dee2e6",
-        borderRadius: "4px",
-        overflow: "hidden",
-        backgroundColor: "#000",
-        position: "relative",
-        height: "120px",
-      }}
+      className={`participant-thumbnail ${isActive ? "active" : ""}`}
     >
       {/* Video thumbnail */}
       {showVideo ? (
-        <div style={{ position: "relative", width: "100%", height: "100%" }}>
+        <div className="participant-thumbnail-video-container">
           <video
             ref={videoRef}
             playsInline
-            style={{
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-              transform: isLocal && !isScreenSharing ? "scaleX(-1)" : "none", // Mirror local video except when screen sharing
-              backgroundColor: "#000",
-            }}
+            className={`participant-thumbnail-video ${
+              isLocal && !isScreenSharing ? "mirrored" : ""
+            }`}
           />
 
           {/* Video off overlay */}
           {isVideoOff && (
-            <div
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: "100%",
-                height: "100%",
-                backgroundColor: "#6c757d",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "white",
-                zIndex: 1,
-              }}
-            >
-              <div style={{ fontSize: "36px", marginBottom: "5px" }}>
+            <div className="participant-thumbnail-video-off-overlay">
+              <div className="participant-thumbnail-avatar">
                 {displayName.charAt(0).toUpperCase()}
               </div>
               {isMuted && (
-                <div
-                  style={{
-                    backgroundColor: "rgba(220,53,69,0.9)",
-                    color: "white",
-                    borderRadius: "50%",
-                    width: "20px",
-                    height: "20px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: "12px",
-                    marginTop: "5px",
-                  }}
-                >
-                  🔇
-                </div>
+                <div className="participant-thumbnail-muted-indicator">🔇</div>
               )}
             </div>
           )}
 
           {/* Loading indicator */}
           {(isLoading || (!isPlaying && !hasError)) && (
-            <div
-              style={{
-                position: "absolute",
-                top: "50%",
-                left: "50%",
-                transform: "translate(-50%, -50%)",
-                color: "white",
-                fontSize: "12px",
-                backgroundColor: "rgba(0,0,0,0.7)",
-                padding: "5px 10px",
-                borderRadius: "4px",
-                display: "flex",
-                alignItems: "center",
-                gap: "5px",
-              }}
-            >
-              <div
-                style={{
-                  width: "12px",
-                  height: "12px",
-                  border: "2px solid #ffffff",
-                  borderTop: "2px solid transparent",
-                  borderRadius: "50%",
-                  animation: "spin 1s linear infinite",
-                }}
-              />
+            <div className="participant-thumbnail-loading-indicator">
+              <div className="participant-thumbnail-loading-spinner" />
               Loading...
             </div>
           )}
 
           {/* Error indicator */}
           {hasError && (
-            <div
-              style={{
-                position: "absolute",
-                top: "50%",
-                left: "50%",
-                transform: "translate(-50%, -50%)",
-                color: "white",
-                fontSize: "12px",
-                backgroundColor: "rgba(220,53,69,0.8)",
-                padding: "5px 10px",
-                borderRadius: "4px",
-                textAlign: "center",
-              }}
-            >
+            <div className="participant-thumbnail-error-indicator">
               Video Error
               <br />
               <small>Click to retry</small>
@@ -395,14 +322,7 @@ export const ParticipantThumbnail: React.FC<{
           {/* Click to play indicator for failed videos */}
           {hasError && !isLocal && (
             <div
-              style={{
-                position: "absolute",
-                bottom: "5px",
-                right: "5px",
-                color: "white",
-                fontSize: "16px",
-                cursor: "pointer",
-              }}
+              className="participant-thumbnail-play-button"
               onClick={(e) => {
                 e.stopPropagation();
                 const video = videoRef.current;
@@ -416,65 +336,22 @@ export const ParticipantThumbnail: React.FC<{
           )}
         </div>
       ) : (
-        <div
-          style={{
-            width: "100%",
-            height: "100%",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: "#6c757d",
-            color: "white",
-            fontSize: "24px",
-          }}
-        >
+        <div className="participant-thumbnail-no-video">
           {displayName.charAt(0).toUpperCase()}
         </div>
       )}
 
       {/* Name label */}
-      <div
-        style={{
-          position: "absolute",
-          bottom: "0",
-          left: "0",
-          right: "0",
-          backgroundColor: "rgba(0,0,0,0.5)",
-          color: "white",
-          padding: "2px 5px",
-          fontSize: "12px",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-          overflow: "hidden",
-        }}
-      >
+      <div className="participant-thumbnail-name-label">
         {isLocal ? "You" : displayName} {isHost && "👑"}
       </div>
 
       {/* Status indicators */}
-      <div
-        style={{
-          position: "absolute",
-          top: "5px",
-          left: "5px",
-          display: "flex",
-          gap: "5px",
-        }}
-      >
+      <div className="participant-thumbnail-status-indicators">
         {/* Audio status indicator */}
         {isMuted && (
           <div
-            style={{
-              backgroundColor: "rgba(220,53,69,0.8)",
-              color: "white",
-              borderRadius: "50%",
-              width: "20px",
-              height: "20px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "10px",
-            }}
+            className="participant-thumbnail-status-indicator"
             title={isLocal ? "You are muted" : `${displayName} is muted`}
           >
             🔇
@@ -484,17 +361,7 @@ export const ParticipantThumbnail: React.FC<{
         {/* Video status indicator */}
         {isVideoOff && (
           <div
-            style={{
-              backgroundColor: "rgba(220,53,69,0.8)",
-              color: "white",
-              borderRadius: "50%",
-              width: "20px",
-              height: "20px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "10px",
-            }}
+            className="participant-thumbnail-status-indicator"
             title={
               isLocal ? "Your video is off" : `${displayName}'s video is off`
             }
@@ -506,17 +373,7 @@ export const ParticipantThumbnail: React.FC<{
         {/* Screen sharing status indicator */}
         {isScreenSharing && (
           <div
-            style={{
-              backgroundColor: "rgba(40,167,69,0.8)",
-              color: "white",
-              borderRadius: "50%",
-              width: "20px",
-              height: "20px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "10px",
-            }}
+            className="participant-thumbnail-status-indicator screen-sharing"
             title={
               isLocal
                 ? "You are sharing screen"
@@ -530,30 +387,12 @@ export const ParticipantThumbnail: React.FC<{
         {/* Connection status for remote videos */}
         {!isLocal && (
           <div
-            style={{
-              backgroundColor: isPlaying
-                ? "rgba(40,167,69,0.8)"
-                : hasError
-                ? "rgba(220,53,69,0.8)"
-                : "rgba(255,193,7,0.8)",
-              color: "white",
-              borderRadius: "50%",
-              width: "8px",
-              height: "8px",
-            }}
+            className={`participant-thumbnail-connection-status ${
+              isPlaying ? "connected" : hasError ? "error" : "loading"
+            }`}
           />
         )}
       </div>
-
-      {/* Add CSS animation for loading spinner */}
-      <style>
-        {`
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-        `}
-      </style>
     </div>
   );
 };
