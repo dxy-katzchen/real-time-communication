@@ -3,6 +3,7 @@ import { Drawer } from "antd";
 import Auth from "./Components/Auth/Auth";
 import MeetingLobby from "./Components/MeetingLobby/MeetingLobby";
 import Chat from "./Components/Chat/Chat";
+import { Control } from "./Components/Control/Control";
 import { ParticipantThumbnail } from "./Components/ParticipantThumbnail/ParticipantThumbnail";
 import { MainVideoComponent } from "./Components/MainVideoComponent/MainVideoComponent";
 import { useAppState } from "./hooks/useAppState";
@@ -15,7 +16,6 @@ import { useEffects } from "./hooks/useEffects";
 import { useMediaStatusSync } from "./hooks/useMediaStatusSync";
 import { useChat } from "./hooks/useChat";
 import { useResponsive } from "./hooks/useResponsive";
-import { isScreenShareSupported } from "./utils/deviceUtils";
 import "./App.css";
 
 function App() {
@@ -587,72 +587,22 @@ function App() {
       </div>
 
       {/* Controls */}
-      <div className="controls">
-        <button
-          onClick={toggleAudio}
-          className={`control-button control-button--circular control-button--mute ${
-            isMuted ? "muted" : ""
-          }`}
-          title={isMuted ? "Unmute" : "Mute"}
-        >
-          {isMuted ? "🔇" : "🎤"}
-        </button>
-
-        <button
-          onClick={toggleVideo}
-          className={`control-button control-button--circular control-button--video ${
-            isVideoOff ? "video-off" : ""
-          }`}
-          title={isVideoOff ? "Start Video" : "Stop Video"}
-        >
-          {isVideoOff ? "📵" : "📹"}
-        </button>
-
-        {isScreenShareSupported() && (
-          <button
-            onClick={toggleScreenShare}
-            className={`control-button control-button--circular control-button--screen-share ${
-              isScreenSharing ? "screen-sharing" : ""
-            }`}
-            title={isScreenSharing ? "Stop Screen Share" : "Share Screen"}
-          >
-            {isScreenSharing ? "🔳" : "🖥️"}
-          </button>
-        )}
-
-        <button
-          onClick={openParticipantsSheet}
-          className={`control-button control-button--circular control-button--participants ${
-            isParticipantsSheetOpen ? "active" : ""
-          }`}
-          title="Show Participants"
-        >
-          👥
-          {participants.length > 1 && (
-            <span className="participants-badge">{participants.length}</span>
-          )}
-        </button>
-
-        <button
-          onClick={toggleChat}
-          className={`control-button control-button--circular control-button--chat ${
-            isChatOpen ? "active" : ""
-          }`}
-          title="Toggle Chat"
-        >
-          💬
-          {unreadMessagesCount > 0 && (
-            <span className="unread-badge">{unreadMessagesCount}</span>
-          )}
-        </button>
-
-        <button
-          onClick={handleLeaveMeeting}
-          className="control-button control-button--leave"
-        >
-          {isHost ? "End Meeting" : "Leave"}
-        </button>
-      </div>
+      <Control
+        isMuted={isMuted}
+        isVideoOff={isVideoOff}
+        isScreenSharing={isScreenSharing}
+        toggleAudio={toggleAudio}
+        toggleVideo={toggleVideo}
+        toggleScreenShare={toggleScreenShare}
+        isChatOpen={isChatOpen}
+        unreadMessagesCount={unreadMessagesCount}
+        toggleChat={toggleChat}
+        isParticipantsSheetOpen={isParticipantsSheetOpen}
+        participantsCount={participants.length}
+        openParticipantsSheet={openParticipantsSheet}
+        isHost={isHost}
+        handleLeaveMeeting={handleLeaveMeeting}
+      />
 
       {/* Chat Component - Desktop */}
       <div className="chat-desktop">

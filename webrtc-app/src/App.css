@@ -268,170 +268,6 @@
   flex: 1;
 }
 
-/* Controls */
-.controls {
-  padding: 20px 24px;
-  background-color: #ffffff;
-  display: flex;
-  justify-content: center;
-  gap: 16px;
-  border-top: 1px solid #e9ecef;
-  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08);
-}
-
-.control-button {
-  padding: 12px 16px;
-  border: none;
-  border-radius: 8px;
-  color: white;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 14px;
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-}
-
-.control-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
-.control-button--circular {
-  border-radius: 50%;
-  width: 56px;
-  height: 56px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-}
-
-.control-button--mute {
-  background-color: #6c757d;
-}
-
-.control-button--mute.muted {
-  background-color: #dc3545;
-}
-
-.control-button--mute:hover {
-  background-color: #5a6268;
-}
-
-.control-button--mute.muted:hover {
-  background-color: #c82333;
-}
-
-.control-button--video {
-  background-color: #6c757d;
-}
-
-.control-button--video.video-off {
-  background-color: #dc3545;
-}
-
-.control-button--video:hover {
-  background-color: #5a6268;
-}
-
-.control-button--video.video-off:hover {
-  background-color: #c82333;
-}
-
-.control-button--screen-share {
-  background-color: #6c757d;
-}
-
-.control-button--screen-share.screen-sharing {
-  background-color: #28a745;
-}
-
-.control-button--screen-share:hover {
-  background-color: #5a6268;
-}
-
-.control-button--screen-share.screen-sharing:hover {
-  background-color: #218838;
-}
-
-.control-button--leave {
-  padding: 12px 24px;
-  background-color: #dc3545;
-  border-radius: 8px;
-  font-weight: 700;
-}
-
-.control-button--leave:hover {
-  background-color: #c82333;
-}
-
-.control-button--chat {
-  background-color: #2d8cff;
-  position: relative;
-}
-
-.control-button--chat:hover {
-  background-color: #1976d2;
-}
-
-.control-button--chat.active {
-  background-color: #1976d2;
-  box-shadow: 0 2px 8px rgba(45, 140, 255, 0.4);
-}
-
-.unread-badge {
-  position: absolute;
-  top: -8px;
-  right: -8px;
-  background-color: #dc3545;
-  color: white;
-  border-radius: 50%;
-  width: 20px;
-  height: 20px;
-  font-size: 11px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.4),
-    0 0 0 2px rgba(255, 255, 255, 0.2);
-}
-
-/* Participants button badge - only visible on mobile */
-.control-button--participants {
-  background-color: #6c757d;
-  position: relative;
-  display: none; /* Hidden on desktop */
-}
-
-.control-button--participants:hover {
-  background-color: #5a6268;
-}
-
-.control-button--participants.active {
-  background-color: #2d8cff;
-}
-
-.participants-badge {
-  position: absolute;
-  top: -8px;
-  right: -8px;
-  background-color: #28a745;
-  color: white;
-  border-radius: 50%;
-  width: 20px;
-  height: 20px;
-  font-size: 11px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  box-shadow: 0 2px 8px rgba(40, 167, 69, 0.4),
-    0 0 0 2px rgba(255, 255, 255, 0.2);
-}
-
 /* Participants Bottom Sheet - only visible on mobile */
 .participants-bottom-sheet {
   position: fixed;
@@ -1534,17 +1370,6 @@
   .sidebar {
     width: 200px;
   }
-
-  .control-button--circular {
-    width: 50px;
-    height: 50px;
-    font-size: 16px;
-  }
-
-  .controls {
-    padding: 16px 20px;
-    gap: 12px;
-  }
 }
 
 /* Mobile Breakpoint - Portrait Tablets and Large Phones */
@@ -1564,11 +1389,6 @@
   /* Hide mobile header as requested */
   .mobile-header {
     display: none;
-  }
-
-  /* Show participants button on mobile */
-  .control-button--participants {
-    display: flex !important;
   }
 
   /* Show participants bottom sheet on mobile - always show when open or closing */
@@ -1681,26 +1501,6 @@
     padding: 8px 12px;
   }
 
-  /* Touch-friendly controls */
-  .controls {
-    padding: 16px;
-    gap: 12px;
-    background-color: #ffffff;
-    border-top: 1px solid #e9ecef;
-    box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.1);
-  }
-
-  .control-button--circular {
-    width: 52px;
-    height: 52px;
-    font-size: 18px;
-  }
-
-  .control-button--leave {
-    padding: 12px 20px;
-    font-size: 14px;
-  }
-
   /* Status bar adjustments */
   .status-bar {
     padding: 10px 16px;
@@ -1736,27 +1536,6 @@
   .main-participant-name {
     font-size: 13px;
     padding: 6px 10px;
-  }
-
-  /* Compact controls for small screens */
-  .controls {
-    padding: 12px;
-    gap: 8px;
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-
-  .control-button--circular {
-    width: 48px;
-    height: 48px;
-    font-size: 16px;
-  }
-
-  .control-button--leave {
-    padding: 10px 16px;
-    font-size: 13px;
-    flex-basis: 100%;
-    margin-top: 8px;
   }
 
   /* Status bar for small screens */
@@ -1799,38 +1578,12 @@
   .main-content {
     height: calc(100vh - 120px); /* No mobile header */
   }
-
-  .controls {
-    padding: 12px 16px;
-  }
-
-  .control-button--circular {
-    width: 44px;
-    height: 44px;
-    font-size: 16px;
-  }
-
-  .control-button--leave {
-    padding: 8px 16px;
-    margin-top: 0;
-    flex-basis: auto;
-  }
 }
 
 /* Very Small Screens - Compact Mode */
 @media (max-width: 360px) {
   .mobile-participants-panel {
     width: 240px;
-  }
-
-  .control-button--circular {
-    width: 44px;
-    height: 44px;
-    font-size: 15px;
-  }
-
-  .controls {
-    gap: 6px;
   }
 
   .main-video-container {
@@ -1851,10 +1604,6 @@
 
 /* Touch device optimizations */
 @media (hover: none) and (pointer: coarse) {
-  .control-button {
-    min-height: 44px; /* Apple's recommended minimum touch target */
-  }
-
   .mobile-participants-toggle {
     min-height: 44px;
     padding: 10px 14px;
