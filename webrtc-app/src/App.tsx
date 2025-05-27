@@ -1,11 +1,11 @@
 import { useEffect, useState, useCallback } from "react";
-import { Drawer } from "antd";
 import Auth from "./Components/Auth/Auth";
 import MeetingLobby from "./Components/MeetingLobby/MeetingLobby";
 import Chat from "./Components/Chat/Chat";
 import { Control } from "./Components/Control/Control";
 import Sidebar from "./Components/Sidebar/Sidebar";
 import ChatDrawer from "./Components/ChatDrawer/ChatDrawer";
+import ParticipantsDrawer from "./Components/ParticipantsDrawer/ParticipantsDrawer";
 import { MainVideoComponent } from "./Components/MainVideoComponent/MainVideoComponent";
 import { useAppState } from "./hooks/useAppState";
 import { useMediaControls } from "./hooks/useMediaControls";
@@ -542,113 +542,18 @@ function App() {
       />
 
       {/* Participants Drawer */}
-      <Drawer
-        title={`Participants (${participants.length})`}
-        placement="bottom"
-        height="auto"
-        open={isParticipantsSheetOpen}
+      <ParticipantsDrawer
+        isOpen={isParticipantsSheetOpen}
         onClose={closeParticipantsSheet}
-        className="participants-drawer"
-        styles={{
-          body: { padding: "16px" },
-          header: { borderBottom: "1px solid #f0f0f0" },
-        }}
-      >
-        <div className="drawer-participants">
-          {/* All participants from the participants array */}
-          {participants.map((participant) => {
-            const isLocalUser = participant.userId === userId;
-            const remoteParticipant = isLocalUser
-              ? null
-              : Array.from(remoteParticipants.values()).find(
-                  (p) => p.userId === participant.userId
-                );
-
-            return (
-              <div
-                key={participant.userId}
-                className={`participant-item ${
-                  isLocalUser
-                    ? mainParticipant === null
-                      ? "active"
-                      : ""
-                    : mainParticipant === participant.userId
-                    ? "active"
-                    : ""
-                }`}
-                onClick={() => {
-                  if (isLocalUser) {
-                    setMainParticipant(null);
-                  } else {
-                    setMainParticipant(participant.userId);
-                  }
-                  closeParticipantsSheet();
-                }}
-              >
-                <div
-                  className={`participant-avatar ${
-                    isLocalUser ? "local" : ""
-                  } ${participant.isHost ? "host" : ""}`}
-                >
-                  {(participant.displayName || participant.username || "U")
-                    .charAt(0)
-                    .toUpperCase()}
-                </div>
-                <div className="participant-info">
-                  <div
-                    className={`participant-name ${
-                      participant.isHost ? "host" : ""
-                    } ${isLocalUser ? "local" : ""}`}
-                  >
-                    {participant.displayName ||
-                      participant.username ||
-                      "Unknown"}
-                  </div>
-                  <div className="participant-status">
-                    {isLocalUser ? (
-                      <>
-                        {isMuted && (
-                          <span className="status-indicator muted">
-                            🔇 Muted
-                          </span>
-                        )}
-                        {isVideoOff && (
-                          <span className="status-indicator video-off">
-                            📹 Video Off
-                          </span>
-                        )}
-                        {isScreenSharing && (
-                          <span className="status-indicator screen-sharing">
-                            🖥️ Screen Sharing
-                          </span>
-                        )}
-                      </>
-                    ) : (
-                      <>
-                        {remoteParticipant?.isMuted && (
-                          <span className="status-indicator muted">
-                            🔇 Muted
-                          </span>
-                        )}
-                        {remoteParticipant?.isVideoOff && (
-                          <span className="status-indicator video-off">
-                            📹 Video Off
-                          </span>
-                        )}
-                        {remoteParticipant?.isScreenSharing && (
-                          <span className="status-indicator screen-sharing">
-                            🖥️ Screen Sharing
-                          </span>
-                        )}
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </Drawer>
+        participants={participants}
+        remoteParticipants={remoteParticipants}
+        userId={userId}
+        mainParticipant={mainParticipant}
+        setMainParticipant={setMainParticipant}
+        isMuted={isMuted}
+        isVideoOff={isVideoOff}
+        isScreenSharing={isScreenSharing}
+      />
     </div>
   );
 }
