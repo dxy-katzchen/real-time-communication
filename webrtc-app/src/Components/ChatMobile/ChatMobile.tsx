@@ -92,9 +92,7 @@ export const ChatMobile: React.FC<ChatMobileProps> = ({
                         })}
                       </span>
                     </div>
-                    <div className="message-content">
-                      {message.message}
-                    </div>
+                    <div className="message-content">{message.message}</div>
                   </div>
                 </div>
               ))}
