@@ -256,27 +256,30 @@ class TestErrorScenarios:
             assert response.status_code == 400
             assert "Username already exists" in response.get_json()["error"]
 
-    def test_invalid_data_types(self, client):
+    def test_invalid_data_types(self, client, mock_db):
         """Test API with invalid data types"""
-        # Try to create user with number as username
-        response = client.post(
-            "/api/users",
-            json={"username": 12345, "displayName": "Number User"},
-            content_type="application/json",
-        )
+        with patch("server.users_collection", mock_db["users"]), patch(
+            "server.meetings_collection", mock_db["meetings"]
+        ), patch("server.participants_collection", mock_db["participants"]):
+            # Try to create user with number as username
+            response = client.post(
+                "/api/users",
+                json={"username": 12345, "displayName": "Number User"},
+                content_type="application/json",
+            )
 
-        # Should handle gracefully
-        assert response.status_code in [200, 201, 400, 500]
+            # Should handle gracefully
+            assert response.status_code in [200, 201, 400, 500]
 
-        # Try to create meeting with invalid hostId type
-        response = client.post(
-            "/api/meetings",
-            json={"hostId": ["invalid", "array"], "name": "Invalid Meeting"},
-            content_type="application/json",
-        )
+            # Try to create meeting with invalid hostId type
+            response = client.post(
+                "/api/meetings",
+                json={"hostId": ["invalid", "array"], "name": "Invalid Meeting"},
+                content_type="application/json",
+            )
 
-        # Should handle gracefully (may succeed with type coercion or fail with error)
-        assert response.status_code in [200, 201, 400, 500]
+            # Should handle gracefully (may succeed with type coercion or fail with error)
+            assert response.status_code in [200, 201, 400, 500]
 
 
 class TestSocketIntegration:

@@ -77,6 +77,7 @@ sequenceDiagram
 
     Note over A,B: WebRTC Handshake
     A->>A: createPeerConnection()
+
     A->>A: createOffer()
     A->>S: emit('offer', {offer, targetSocket: B})
     S->>B: emit('offer', {offer, fromSocket: A})

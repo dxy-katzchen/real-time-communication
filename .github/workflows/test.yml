@@ -18,21 +18,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
+    env:
+      # Test environment configuration
+      TESTING: true
+      FLASK_ENV: testing
+      # Since we use mongomock, we don't need a real MongoDB connection
+      MONGODB_URI: mongodb://localhost:27017/test_db_mock
+
     strategy:
       fail-fast: false # Don't cancel other jobs if one fails
       matrix:
         python-version: ["3.9", "3.11"] # Reduced to 2 versions to minimize infrastructure issues
 
-    services:
-      mongodb:
-        image: mongo:6.0
-        ports:
-          - 27017:27017
-        options: >-
-          --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")'"
-          --health-interval 10s
-          --health-timeout 10s
-          --health-retries 15
+    # Note: MongoDB service removed since tests use mongomock
+    # No real database connection needed for testing
 
     steps:
       - name: Checkout code
@@ -60,38 +59,13 @@ jobs:
           echo "Installed packages:"
           pip list
 
-      - name: Wait for MongoDB
+      - name: Verify test environment
         run: |
-          echo "Waiting for MongoDB to be ready..."
-          sleep 15
-          echo "Checking MongoDB connection with timeout..."
-
-          # Try connecting with a reasonable timeout
-          RETRY_COUNT=0
-          MAX_RETRIES=20
-
-          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-            if mongosh --eval "db.adminCommand('ping')" --quiet > /dev/null 2>&1; then
-              echo "MongoDB is ready!"
-              break
-            fi
-            
-            RETRY_COUNT=$((RETRY_COUNT + 1))
-            echo "Attempt $RETRY_COUNT/$MAX_RETRIES: MongoDB not ready yet, waiting..."
-            sleep 3
-          done
-
-          if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
-            echo "ERROR: MongoDB failed to start after $MAX_RETRIES attempts"
-            echo "Checking MongoDB service status..."
-            docker ps -a
-            exit 1
-          fi
-
-      - name: Test MongoDB connection
-        run: |
-          echo "Testing MongoDB connectivity..."
-          mongosh --eval "db.runCommand('ping')" || echo "MongoDB connection test failed"
+          echo "Verifying test environment setup..."
+          echo "Python version: $(python --version)"
+          echo "Pip packages:"
+          pip list | grep -E "(pymongo|mongomock|pytest|flask)"
+          echo "Tests use mongomock - no real MongoDB connection needed"
 
       - name: Run linting
         working-directory: Flask-Backend

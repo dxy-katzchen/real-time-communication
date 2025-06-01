@@ -55,6 +55,7 @@ def sample_meeting():
     }
 
 
+
 @pytest.fixture
 def socket_client():
     """Create a test client for Socket.IO."""
