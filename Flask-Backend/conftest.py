@@ -37,22 +37,7 @@ def mock_db():
         }
 
 
-@pytest.fixture
-def sample_user():
-    """Sample user data for testing."""
-    return {
-        'username': 'testuser',
-        'displayName': 'Test User'
-    }
 
-
-@pytest.fixture
-def sample_meeting():
-    """Sample meeting data for testing."""
-    return {
-        'name': 'Test Meeting',
-        'hostId': 'test_host_id'
-    }
 
 
 @pytest.fixture
