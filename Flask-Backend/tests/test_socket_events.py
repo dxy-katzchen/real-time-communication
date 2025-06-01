@@ -2,10 +2,13 @@
 Unit tests for Socket.IO events
 Tests WebRTC signaling, chat, media controls, and real-time communication
 """
+import pytest
 from unittest.mock import patch
 from datetime import datetime
 
 
+@pytest.mark.socket
+@pytest.mark.unit
 class TestSocketConnection:
     """Test Socket.IO connection events"""
 
@@ -32,6 +35,8 @@ class TestSocketConnection:
             assert True  # If no exception, test passes
 
 
+@pytest.mark.socket
+@pytest.mark.unit
 class TestMeetingRoomEvents:
     """Test meeting room join/leave events"""
 
@@ -120,6 +125,8 @@ class TestMeetingRoomEvents:
             assert meeting["active"] is True
 
 
+@pytest.mark.socket
+@pytest.mark.unit
 class TestWebRTCSignaling:
     """Test WebRTC signaling events"""
 
@@ -182,6 +189,8 @@ class TestWebRTCSignaling:
         assert True
 
 
+@pytest.mark.socket
+@pytest.mark.unit
 class TestMediaStatusEvents:
     """Test media status update events"""
 
@@ -224,6 +233,8 @@ class TestMediaStatusEvents:
         assert True
 
 
+@pytest.mark.socket
+@pytest.mark.unit
 class TestChatEvents:
     """Test chat message events"""
 
@@ -292,6 +303,8 @@ class TestChatEvents:
         assert True
 
 
+@pytest.mark.socket
+@pytest.mark.unit
 class TestSocketErrorHandling:
     """Test error handling in socket events"""
 
