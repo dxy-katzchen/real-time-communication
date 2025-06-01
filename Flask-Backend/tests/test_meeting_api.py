@@ -2,11 +2,14 @@
 Unit tests for Meeting Management API endpoints
 Tests meeting creation, joining, ending, and participant management
 """
+import pytest
 from bson import ObjectId
 from datetime import datetime
 from unittest.mock import patch
 
 
+@pytest.mark.api
+@pytest.mark.unit
 class TestMeetingAPI:
     """Test cases for meeting management endpoints"""
 
@@ -375,9 +378,12 @@ class TestMeetingAPI:
             assert data["isHost"] is False
 
 
+@pytest.mark.api
+@pytest.mark.unit
 class TestMeetingEdgeCases:
     """Test edge cases and error conditions for meeting API"""
 
+    @pytest.mark.slow
     def test_invalid_meeting_id_format(self, client):
         """Test with invalid ObjectId format"""
         response = client.post(
