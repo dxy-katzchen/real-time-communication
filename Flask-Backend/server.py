@@ -258,6 +258,27 @@ def handle_disconnect():
         print(f"User {user_id} left room {room}")
         del active_connections[request.sid]
 
+@socketio.on("leave")
+def on_leave(data):
+    room = data["room"]
+    user_id = data.get("userId")
+
+    print(f"User {user_id} explicitly leaving room {room}")
+
+    leave_room(room)
+
+    # Notify other participants
+    socketio.emit(
+        "user-left", {"userId": user_id, "socketId": request.sid}, to=room, include_self=False
+    )
+
+    # Remove from database
+    participants_collection.delete_one({"meetingId": room, "userId": user_id})
+
+    # Clean up connection
+    if request.sid in active_connections:
+        del active_connections[request.sid]
+
 
 @socketio.on("join")
 def on_join(data):
@@ -294,28 +315,6 @@ def on_join(data):
     except Exception as e:
         print(f"Error in join event: {e}")
         socketio.emit("error", {"message": "Failed to join room"}, to=request.sid)
-
-
-@socketio.on("leave")
-def on_leave(data):
-    room = data["room"]
-    user_id = data.get("userId")
-
-    print(f"User {user_id} explicitly leaving room {room}")
-
-    leave_room(room)
-
-    # Notify other participants
-    socketio.emit(
-        "user-left", {"userId": user_id, "socketId": request.sid}, to=room, include_self=False
-    )
-
-    # Remove from database
-    participants_collection.delete_one({"meetingId": room, "userId": user_id})
-
-    # Clean up connection
-    if request.sid in active_connections:
-        del active_connections[request.sid]
 
 
 # Add this with the other socket.io events
