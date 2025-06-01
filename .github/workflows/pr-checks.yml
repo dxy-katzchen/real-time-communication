@@ -44,7 +44,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "18"
+          node-version: "20" # Updated to LTS version
           cache: "npm"
           cache-dependency-path: "./webrtc-app/package-lock.json"
 
@@ -55,12 +55,14 @@ jobs:
       - name: Run frontend linting
         working-directory: ./webrtc-app
         run: npm run lint
-        continue-on-error: true
+
+      - name: Run TypeScript type checking
+        working-directory: ./webrtc-app
+        run: npm run type-check
 
       - name: Run frontend tests
         working-directory: ./webrtc-app
         run: npm test
-        continue-on-error: true
 
       - name: Build frontend
         working-directory: ./webrtc-app
@@ -75,25 +77,26 @@ jobs:
       matrix:
         python-version: ["3.9", "3.11"]
 
-    services:
-      mongodb:
-        image: mongo:6.0
-        ports:
-          - 27017:27017
-        options: >-
-          --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")'"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+    env:
+      # Test environment configuration
+      TESTING: true
+      FLASK_ENV: testing
+      # Since we use mongomock, we don't need a real MongoDB connection
+      MONGODB_URI: mongodb://localhost:27017/test_db_mock
+
+    # Note: MongoDB service removed since tests use mongomock
+    # No real database connection needed for testing
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5 # Updated to latest version
         with:
           python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+          cache-dependency-path: '**/requirements*.txt'
 
       - name: Cache pip dependencies
         uses: actions/cache@v4
@@ -110,10 +113,10 @@ jobs:
           pip install -r requirements.txt
           pip install -r requirements-test.txt
 
-      - name: Wait for MongoDB
+      - name: Verify test environment
         run: |
-          echo "Waiting for MongoDB to be ready..."
-          sleep 10
+          echo "Tests use mongomock - no real MongoDB connection needed"
+          pip list | grep -E "(pymongo|mongomock|pytest|flask)"
 
       - name: Run backend linting
         working-directory: ./Flask-Backend
