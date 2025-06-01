@@ -7,6 +7,9 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "echo 'No tests specified yet' && exit 0",
+    "type-check": "tsc --noEmit",
     "preview": "vite preview"
   },
   "dependencies": {
